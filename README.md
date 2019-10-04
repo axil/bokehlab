@@ -20,3 +20,11 @@ The following colors are supported so far:
     'g' green
     'r' red
     'o' orange
+
+## Installation
+
+pip install bokeh-plot
+
+## Usage
+
+%load_ext bokeh_plot
