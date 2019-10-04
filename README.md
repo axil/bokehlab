@@ -21,7 +21,9 @@ The following colors are supported so far:
     'r' red
     'o' orange
     
-The color specifier must go after the marker if both are present.
+NB The color specifier must go after the marker if both are present.
+
+There're also semilogx, semilogy and loglog for (semi)logarithmic plots.
 
 ## Installation
 
