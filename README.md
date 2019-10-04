@@ -8,6 +8,8 @@ The following syntax is supported:
     plot([1,2,3], [1,4,9], '.-')    # x, y and line style
     plot([1,2,3], [1,4,9], '.-', [1,2,3], [1,8,27], '.-g')   # two plots, the second one is green
 
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/screenshot.png" width="800">
+
 The following markers are supported so far:
 
     '.' dots
@@ -23,7 +25,7 @@ The following colors are supported so far:
     
 NB The color specifier must go after the marker if both are present.
 
-There're also semilogx, semilogy and loglog for (semi)logarithmic plots.
+There're also `semilogx()`, `semilogy()` and `loglog()` for (semi)logarithmic plots.
 
 ## Installation
 
