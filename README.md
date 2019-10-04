@@ -20,6 +20,8 @@ The following colors are supported so far:
     'g' green
     'r' red
     'o' orange
+    
+The color specifier must go after the marker if both are present.
 
 ## Installation
 
