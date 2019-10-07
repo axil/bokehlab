@@ -2,13 +2,13 @@
 
 ## Installation: 
 
-pip install bokeh-plot
+    pip install bokeh-plot
 
 ## Usage:
 
 To load this extension in jupyter notebook:
 
-%load_ext bokeh_plot
+    %load_ext bokeh_plot
 
 The following syntax is supported:
 
@@ -40,6 +40,4 @@ NB The color specifier must go after the marker if both are present.
 
 `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.
 
-Show point coordinates on mouse hover:
-
-   plot(x, y, hover=True)
+`plot(x, y, hover=True)` displays point coordinates on mouse hover.
