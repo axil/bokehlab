@@ -1,5 +1,15 @@
 # bokeh-plot
 
+## Installation: 
+
+pip install bokeh-plot
+
+## Usage:
+
+To load this extension in jupyter notebook:
+
+%load_ext bokeh_plot
+
 The following syntax is supported:
 
     plot([1,4,9])             # x is automatic 
@@ -25,12 +35,11 @@ The following colors are supported so far:
     
 NB The color specifier must go after the marker if both are present.
 
-There're also `semilogx()`, `semilogy()` and `loglog()` for (semi)logarithmic plots.
 
-## Installation
+## Advanced usage
 
-pip install bokeh-plot
+`semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.
 
-## Usage
+Show point coordinates on mouse hover:
 
-%load_ext bokeh_plot
+   plot(x, y, hover=True)
