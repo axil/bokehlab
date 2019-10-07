@@ -3,6 +3,9 @@ from bokeh.models import HoverTool, ColumnDataSource, Span
 from bokeh.io import output_notebook
 from bokeh.layouts import layout
 import numpy as np
+
+__version__ = '0.1.1'
+
 output_notebook()
 
 BLUE = "#1f77b4"
