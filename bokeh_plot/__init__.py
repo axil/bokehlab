@@ -5,7 +5,7 @@ from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 output_notebook(resources=INLINE)
 
@@ -44,9 +44,9 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
     base_color = kwargs.pop('color', BLUE)
     for x, y, style in tr:
         if mode in ('semilogx', 'loglog'):
-            x = np.log(x)
+            x = np.log(x)/np.log(10)
         if mode in ('semilogy', 'loglog'):
-            y = np.log(y)
+            y = np.log(y)/np.log(10)
         source = ColumnDataSource(data=dict(x=x, y=y))
         if style and style[-1] in COLORS:
             color = COLORS[style[-1]]
