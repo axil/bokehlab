@@ -7,13 +7,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="bokeh_plot",
-    version="0.1.1",
+    version="0.1.2",
     author='Lev Maximov',
     author_email='lev.maximov@gmail.com',
     url='https://github.com/axil/bokeh-plot',
     description="Matlab-inspired call syntax for bokeh plots",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    install_requires=['bokeh'],
     packages=['bokeh_plot'],
     classifiers=[
         "Programming Language :: Python :: 3",

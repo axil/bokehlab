@@ -2,11 +2,12 @@ import bokeh.plotting as bp
 from bokeh.models import HoverTool, ColumnDataSource, Span
 from bokeh.io import output_notebook
 from bokeh.layouts import layout
+from bokeh.resources import INLINE
 import numpy as np
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
-output_notebook()
+output_notebook(resources=INLINE)
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
