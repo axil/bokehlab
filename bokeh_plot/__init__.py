@@ -5,9 +5,10 @@ from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
 
-__version__ = '0.1.3'
+__version__ = '0.1.5'
 
-output_notebook(resources=INLINE)
+#output_notebook(resources=INLINE)
+output_notebook()
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
@@ -22,7 +23,15 @@ def figure(plot_width=950, plot_height=300, active_scroll='wheel_zoom', **kwargs
 def plot(*args, p=None, hover=False, mode='plot', **kwargs):
     show = p is None
     if show:
-        p = figure()
+        if mode == 'plot':
+            p = figure()
+        elif mode == 'semilogx':
+            p = figure(x_axis_type='log')
+        elif mode == 'semilogy':
+            p = figure(y_axis_type='log')
+        elif mode == 'loglog':
+            p = figure(x_axis_type='log', y_axis_type='log')
+            print('ok')
     if hover:
         p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
     tr = []
@@ -43,10 +52,6 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
             tr.append(args[3*h:3*(h+1)])
     base_color = kwargs.pop('color', BLUE)
     for x, y, style in tr:
-        if mode in ('semilogx', 'loglog'):
-            x = np.log(x)/np.log(10)
-        if mode in ('semilogy', 'loglog'):
-            y = np.log(y)/np.log(10)
         source = ColumnDataSource(data=dict(x=x, y=y))
         if style and style[-1] in COLORS:
             color = COLORS[style[-1]]
