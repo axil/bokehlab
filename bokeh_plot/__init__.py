@@ -7,13 +7,14 @@ import numpy as np
 
 __version__ = '0.1.5'
 
-#output_notebook(resources=INLINE)
-output_notebook()
+output_notebook(resources=INLINE)
+#output_notebook()
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
 ORANGE = '#ff7f0e'
 RED = '#d62728'
+BLACK = '#000000'
 COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED}
 
 def figure(plot_width=950, plot_height=300, active_scroll='wheel_zoom', **kwargs):
@@ -67,15 +68,16 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
 def semilogx(*args, **kwargs):
     kwargs['mode'] = 'semilogx'
     plot(*args, **kwargs)
-    
+
 def semilogy(*args, **kwargs):
     kwargs['mode'] = 'semilogy'
     plot(*args, **kwargs)
-    
+
 def loglog(*args, **kwargs):
     kwargs['mode'] = 'loglog'
     plot(*args, **kwargs)
 
 def load_ipython_extension(ipython):
-    ipython.user_ns.update(dict(figure=figure, plot=plot,
-        semilogx=semilogx, semilogy=semilogy, loglog=loglog))
+    ipython.user_ns.update(dict(figure=figure, plot=plot, show=bp.show,
+        semilogx=semilogx, semilogy=semilogy, loglog=loglog,
+        RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK, bp=bp))
