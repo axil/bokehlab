@@ -20,6 +20,11 @@ def figure(plot_width=950, plot_height=300, active_scroll='wheel_zoom', **kwargs
     return bp.figure(plot_width=plot_width, plot_height=plot_height,
                      active_scroll=active_scroll, **kwargs)
 
+def loglog_figure(plot_width=950, plot_height=300, active_scroll='wheel_zoom', **kwargs):
+    return bp.figure(plot_width=plot_width, plot_height=plot_height, 
+            active_scroll=active_scroll, 
+            x_axis_type='log', y_axis_type='log', **kwargs)
+
 def plot(*args, p=None, hover=False, mode='plot', **kwargs):
     show = p is None
     if show:
@@ -77,5 +82,6 @@ def loglog(*args, **kwargs):
     plot(*args, **kwargs)
 
 def load_ipython_extension(ipython):
-    ipython.user_ns.update(dict(figure=figure, plot=plot,
-        semilogx=semilogx, semilogy=semilogy, loglog=loglog))
+    ipython.user_ns.update(dict(figure=figure, loglog_figure=loglog_figure,
+        plot=plot, semilogx=semilogx, semilogy=semilogy, loglog=loglog, 
+        show=bp.show))
