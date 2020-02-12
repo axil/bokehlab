@@ -1,9 +1,12 @@
+from collections.abc import Iterable
+
 import bokeh.plotting as bp
 from bokeh.models import HoverTool, ColumnDataSource, Span
 from bokeh.io import output_notebook
 from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
+import torch
 
 __version__ = '0.1.5'
 
@@ -50,14 +53,22 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
             y, style = args
         else:
             x, y = args
-        if x is None:
-            x = list(range(len(y)))
-        tr.append((x, y, style))
+        if isinstance(y, torch.Tensor) and y.dim()==2 or \
+           not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable):
+            for yi in y:
+                xi = list(range(len(yi)))
+                tr.append((xi, yi, style))
+        else:
+            if x is None:
+                x = list(range(len(y)))
+            tr.append((x, y, style))
     elif len(args) % 3 == 0:
         for h in range(len(args)//3):
             tr.append(args[3*h:3*(h+1)])
     base_color = kwargs.pop('color', BLUE)
     for x, y, style in tr:
+        if isinstance(y, torch.Tensor):
+            y = y.detach().numpy()
         source = ColumnDataSource(data=dict(x=x, y=y))
         if style and style[-1] in COLORS:
             color = COLORS[style[-1]]
@@ -69,6 +80,18 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
             p.circle('x', 'y', source=source, color=color, **kwargs)
     if show:
         bp.show(p)
+
+# eg:
+# plot([1,2,3])
+# plot(np.array([1,2,3]))
+# plot(torch.tensor((1,2,3)))
+# plot([1,2,3], '.-')
+# plot(np.array([1,2,3]), '.-')
+# plot(torch.tensor((1,2,3)), '.-')
+# plot([(1,2,3), (3,2,1)])
+# plot([(1,2,3), (3,2,1)], '.-')
+# plot([np.array((3,2,1)), torch.tensor((1,2,3))])
+# plot([np.array((3,2,1)), torch.tensor((1,2,3))], '.-')
 
 def semilogx(*args, **kwargs):
     kwargs['mode'] = 'semilogx'
