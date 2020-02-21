@@ -41,10 +41,13 @@ def loglog_figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', *
 #q = len(style)//n
 #styles = [''.join(q) for q in grouper(style, q)]
 
+def is_2d(y):
+    return isinstance(y, torch.Tensor) and y.dim()==2 or \
+      not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable)
+
 def parse(x, y, style):
     tr = []
-    if isinstance(y, torch.Tensor) and y.dim()==2 or \
-      not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable):
+    if is_2d(y):
         n = len(y)
         line_style = re.sub('[a-z]', '', style) or '-'
         colors = re.sub('[^a-z]', '', style) or 'b'
@@ -52,12 +55,16 @@ def parse(x, y, style):
             styles = [line_style+c for c in colors]
         else:
             styles = [line_style+colors]*n
-        for yi, si in zip(y, styles):
-            if x is None:
-                xi = list(range(len(yi)))
-            else:
-                xi = x
-            tr.append((xi, yi, si))
+        if is_2d(x):
+            for xi, yi, si in zip(x, y, styles):
+                tr.append((xi, yi, si))
+        else:
+            for yi, si in zip(y, styles):
+                if x is None:
+                    xi = list(range(len(yi)))
+                else:
+                    xi = x
+                tr.append((xi, yi, si))
     else:
         if x is None:
             x = list(range(len(y)))
