@@ -1,13 +1,22 @@
 import re
 from collections.abc import Iterable
 
+USE_TORCH = 0
+
 import bokeh.plotting as bp
 from bokeh.models import HoverTool, ColumnDataSource, Span
 from bokeh.io import output_notebook, push_notebook
 from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
-import torch
+
+if USE_TORCH:
+    import torch
+else:
+    class torch:
+        class Tensor:
+            pass
+
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
@@ -28,8 +37,8 @@ def figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs
                      active_scroll=active_scroll, **kwargs)
 
 def loglog_figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
-    return bp.figure(plot_width=plot_width, plot_height=plot_height, 
-            active_scroll=active_scroll, 
+    return bp.figure(plot_width=plot_width, plot_height=plot_height,
+            active_scroll=active_scroll,
             x_axis_type='log', y_axis_type='log', **kwargs)
 
 #from itertools import zip_longest
@@ -55,7 +64,7 @@ def parse(x, y, style):
         if isinstance(style, (tuple, list)):
             styles = style
             if len(styles) != n:
-                raise ParseError('len(styles)={len(styles)} does not match len(y)={len(y)}')
+                raise ParseError(f'len(styles)={len(styles)} does not match len(y)={len(y)}')
         else:
             line_style = re.sub('[a-z]', '', style) or '-'
             colors = re.sub('[^a-z]', '', style) or 'b'
@@ -166,11 +175,11 @@ def imshow(im):
     bp.show(p)
 
 def load_ipython_extension(ipython):
-    ipython.user_ns.update(dict(figure=figure, 
+    ipython.user_ns.update(dict(figure=figure,
         loglog_figure=loglog_figure,
-        plot=plot, 
+        plot=plot,
         show=bp.show,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
-        RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK, 
+        RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
         bp=bp, imshow=imshow))
