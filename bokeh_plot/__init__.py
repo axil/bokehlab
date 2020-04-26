@@ -21,6 +21,8 @@ else:
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
+#from .parser import parse
+
 __version__ = '0.1.5'
 
 output_notebook(resources=INLINE)
@@ -32,6 +34,10 @@ ORANGE = '#ff7f0e'
 RED = '#d62728'
 BLACK = '#000000'
 COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
+def get_color(c):
+    if c == 'a':
+        c = AUTOCOLOR.popleft()
+    return COLORS[c]
 FIGURE = []
 AUTOCOLOR = deque()
 REGISTERED = {}
@@ -54,9 +60,23 @@ def loglog_figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', *
 #q = len(style)//n
 #styles = [''.join(q) for q in grouper(style, q)]
 
+# ________________________________ parser __________________________________________
+
+import re
+from collections.abc import Iterable
+
+USE_TORCH = 0
+
+if USE_TORCH:
+    import torch
+else:
+    class torch:
+        class Tensor:
+            pass
+
 def is_2d(y):
     return isinstance(y, torch.Tensor) and y.dim()==2 or \
-      not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable)
+       not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable)
 
 class ParseError(Exception):
     pass
@@ -64,38 +84,142 @@ class ParseError(Exception):
 class Missing:
     pass
 
-def parse(x, y, style):
+def parse_spec(spec):
+    if spec is None:
+        spec = ''
+    style = re.sub('[a-z]', '', spec) or '-'
+    color = re.sub('[^a-z]', '', spec) or 'a'
+    return style, color
+
+def parse3(x, y, spec): # -> list of (x, y, spec)
     tr = []
+    #import ipdb; ipdb.set_trace()
     if is_2d(y):
-        n = len(y)
-        if isinstance(style, (tuple, list)):
-            styles = style
-            if len(styles) != n:
-                raise ParseError(f'len(styles)={len(styles)} does not match len(y)={len(y)}')
-        else:
-            line_style = re.sub('[a-z]', '', style) or '-'
-            colors = re.sub('[^a-z]', '', style) or 'b'
-            if len(colors) == n:
-                styles = [line_style+c for c in colors]
+        h, w = len(y), len(y[0])
+        if isinstance(x, Missing) and w == 2 and h > 2:
+            if isinstance(y, np.ndarray):
+                tr.append((y[:,0], y[:,1], spec))
             else:
-                styles = [line_style+colors]*n
-        if is_2d(x):
-            for xi, yi, si in zip(x, y, styles):
-                tr.append((xi, yi, si))
+                _x, _y = [], []
+                for row in y:
+                    _x.append(row[0])
+                    _y.append(row[1])
+                tr.append((_x, _y, spec))
         else:
-            for yi, si in zip(y, styles):
-                if isinstance(x, Missing):
-                    xi = list(range(len(yi)))
+            n = len(y)
+            if isinstance(spec, (tuple, list)):
+                specs = spec
+                if len(specs) != n:
+                    raise ParseError(f'len(spec)={len(spec)} does not match len(y)={len(y)}')
+            else:
+                style, colors = parse_spec(spec)
+                if len(colors) == n:
+                    specs = [style+c for c in colors]
                 else:
-                    xi = x
-                tr.append((xi, yi, si))
+                    specs = [style+colors]*n
+            if is_2d(x):
+                for xi, yi, si in zip(x, y, specs):
+                    tr.append((xi, yi, si))
+            else:
+                for yi, si in zip(y, specs):
+                    if isinstance(x, Missing):
+                        xi = list(range(len(yi)))
+                    else:
+                        xi = x
+                    tr.append((xi, yi, si))
     else:
         if isinstance(x, Missing):
             x = list(range(len(y)))
-        tr.append((x, y, style))
+        tr.append((x, y, spec))
     return tr
 
-def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, **kwargs):
+def test_parse3():
+    x = [1,2,3]
+    y = [1,4,9]
+    y1 = [-1,-4,-9]
+    assert parse3(x, y, '') == [(x, y, '')]
+    assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
+    assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
+    assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
+    assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
+    assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
+    print(parse3(x, [y, y1], '.-gr'))
+
+def parse(*args, color=None, legend=None):
+    tr = []
+    style = '-'
+    if len(args) in (1, 2):
+        x = Missing()
+        if len(args) == 1:
+            y = args[0]
+        elif isinstance(args[1], str) or \
+             isinstance(args[1], (tuple, list)) and len(args[0]) > 0 and \
+             isinstance(args[1][0], str):
+            y, style = args
+        else:
+            x, y = args
+        if isinstance(y, dict):
+            x, y = list(y.keys()), list(y.values())
+        tr.extend(parse3(x, y, style))
+    elif len(args) % 3 == 0:
+        n = len(args)//3
+        for h in range(n):
+            x, y, style = args[3*h:3*(h+1)]
+            tr.extend(parse3(x, y, style))
+    n = len(tr)
+    # color
+    if isinstance(color, (list, tuple)):
+        if len(color) != n:
+            raise ValueError(f'len(color)={len(color)}; color should either be a string or a tuple of length {n}')
+        colors = color
+    elif isinstance(color, str):
+        colors = [color] * n
+    elif color is None:
+        colors = 'a'*n
+    else:
+        raise ValueError(f'color={color}; it should either be a string or a tuple of length {n}')
+    # legend
+    if isinstance(legend, (list, tuple)):
+        if len(legend) != n:
+            raise ValueError(f'len(legend)={len(legend)}; legend should either be a string or a tuple of length {n}')
+        legends = legend
+    elif isinstance(legend, str):
+        legends = [legend] * n
+    elif legend is None:
+        legends = [None] * n
+    else:
+        raise ValueError(f'legend={legend}; it should either be a string or a tuple of length {n}')
+    qu = []
+    for (x, y, spec), color, legend in zip(tr, colors, legends):
+        style, _color = parse_spec(spec)
+        if _color != 'a':
+            color = _color
+        qu.append((x, y, style, color, legend))
+    return qu
+    
+def test_parser():
+    x = [1,2,3]
+    y = [1,4,9]
+    y1 = [-1,-4,-9]
+    #assert parse3(x, y, '') == [(x, y, '')]
+    #assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
+    #assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
+    #assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
+    #assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
+    #assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
+    assert parse(y) == [([0, 1, 2], y, '-', 'a', None)]
+    assert parse(x, y) == [(x, y, '-', 'a', None)]
+    assert parse(x, y, '.') == [(x, y, '.', 'a', None)]
+    assert parse(x, y, '.-') == [(x, y, '.-', 'a', None)]
+    assert parse(x, y, '.-g') == [(x, y, '.-', 'g', None)]
+    assert parse(x, y, '.-g', legend='aaa') == [(x, y, '.-', 'g', 'aaa')]
+    assert parse(x, [y, y1], '.-', color=['r', 'g']) == [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)]
+    assert parse(x, [y, y1], '.-rg', legend=['y', 'y1']) == [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')]
+    print(parse(x, [y, y1], '.-g', legend='aaa'))
+
+# __________________________________________________________________________________
+
+def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None, legend=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
@@ -115,36 +239,12 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, **kwar
             else:
                 p = FIGURE[0]
 #                print('B')
-
+        quintuples = parse(*args, color=color, legend=legend)
         notebook_handle = kwargs.pop('notebook_handle', False)
         if hover:
             p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
-        tr = []
-        style = '-'
-        if len(args) in (1, 2):
-            x = Missing()
-            if len(args) == 1:
-                y = args[0]
-            elif isinstance(args[1], str) or \
-                 isinstance(args[1], (tuple, list)) and len(args[0]) > 0 and \
-                 isinstance(args[1][0], str):
-                y, style = args
-            else:
-                x, y = args
-            if isinstance(y, dict):
-                x, y = list(y.keys()), list(y.values())
-            tr.extend(parse(x, y, style))
-        elif len(args) % 3 == 0:
-            for h in range(len(args)//3):
-                x, y, style = args[3*h:3*(h+1)]
-                tr.extend(parse(x, y, style))
-        base_color = kwargs.pop('color', BLUE)
-        for x, y, style in tr:
-            if style and style[-1] in COLORS:
-                color = COLORS[style[-1]]
-                style = style[:-1]
-            else:
-                color = COLORS[AUTOCOLOR.popleft()]
+        for x, y, style, color_str, legend in quintuples:
+            color = get_color(color_str)
             if isinstance(y, torch.Tensor):
                 y = y.detach().numpy()
             if isinstance(y, dict):
@@ -152,10 +252,13 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, **kwar
             if len(x) != len(y):
                 raise ValueError(f'len(x)={len(x)} is different from len(y)={len(y)}')
             source = ColumnDataSource(data=dict(x=x, y=y))
+            legend_set = False
             if not style or '-' in style:
-                p.line('x', 'y', source=source, color=color, **kwargs)
+                p.line('x', 'y', source=source, color=color, legend=legend, **kwargs)
+                legend_set = True
             if '.' in style:
-                p.circle('x', 'y', source=source, color=color, **kwargs)
+                _legend = None if legend_set else legend
+                p.circle('x', 'y', source=source, color=color, legend=_legend, **kwargs)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
@@ -181,9 +284,11 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, **kwar
 # plot([np.array((3,2,1)), torch.tensor((1,2,3))])
 # plot([np.array((3,2,1)), torch.tensor((1,2,3))], '.-')
 # plot((1,2,3), [(1,4,9), (1,8,27)])  # two plots with same x values
+# plot({1: 1, 2: 4, 3: 9}) => parabola
+# plot(x, [sin(x), cos(x)])
+# plot(x, [sin(x), cos(x)], 'gr')
 # * Errors:
 # plot([1,2], [1,2,3]) => ValueError
-# plot({1: 1, 2: 4, 3: 9}) => parabola
 
 def semilogx(*args, **kwargs):
     kwargs['mode'] = 'semilogx'
