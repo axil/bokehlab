@@ -1,5 +1,6 @@
 import re
 from collections.abc import Iterable
+from collections import deque
 
 USE_TORCH = 0
 
@@ -31,6 +32,9 @@ ORANGE = '#ff7f0e'
 RED = '#d62728'
 BLACK = '#000000'
 COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
+FIGURE = []
+AUTOCOLOR = deque()
+REGISTERED = {}
 
 def figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
     return bp.figure(plot_width=plot_width, plot_height=plot_height,
@@ -57,6 +61,9 @@ def is_2d(y):
 class ParseError(Exception):
     pass
 
+class Missing:
+    pass
+
 def parse(x, y, style):
     tr = []
     if is_2d(y):
@@ -77,37 +84,45 @@ def parse(x, y, style):
                 tr.append((xi, yi, si))
         else:
             for yi, si in zip(y, styles):
-                if x is None:
+                if isinstance(x, Missing):
                     xi = list(range(len(yi)))
                 else:
                     xi = x
                 tr.append((xi, yi, si))
     else:
-        if x is None:
+        if isinstance(x, Missing):
             x = list(range(len(y)))
         tr.append((x, y, style))
     return tr
 
-def plot(*args, p=None, hover=False, mode='plot', **kwargs):
+def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, **kwargs):
+#    print('(plot) FIGURE =', FIGURE)
     try:
-        show = p is None
-        if show:
-            if mode == 'plot':
-                p = figure()
-            elif mode == 'semilogx':
-                p = figure(x_axis_type='log')
-            elif mode == 'semilogy':
-                p = figure(y_axis_type='log')
-            elif mode == 'loglog':
-                p = figure(x_axis_type='log', y_axis_type='log')
-                print('ok')
+        #show = p is None
+        if p is None:
+            if not FIGURE:
+                if mode == 'plot':
+                    p = figure()
+                elif mode == 'semilogx':
+                    p = figure(x_axis_type='log')
+                elif mode == 'semilogy':
+                    p = figure(y_axis_type='log')
+                elif mode == 'loglog':
+                    p = figure(x_axis_type='log', y_axis_type='log')
+                    print('ok')
+                FIGURE.append(p)
+#                print('A', FIGURE)
+            else:
+                p = FIGURE[0]
+#                print('B')
+
         notebook_handle = kwargs.pop('notebook_handle', False)
         if hover:
             p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
         tr = []
         style = '-'
         if len(args) in (1, 2):
-            x = None
+            x = Missing()
             if len(args) == 1:
                 y = args[0]
             elif isinstance(args[1], str) or \
@@ -116,6 +131,8 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
                 y, style = args
             else:
                 x, y = args
+            if isinstance(y, dict):
+                x, y = list(y.keys()), list(y.values())
             tr.extend(parse(x, y, style))
         elif len(args) % 3 == 0:
             for h in range(len(args)//3):
@@ -123,21 +140,31 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
                 tr.extend(parse(x, y, style))
         base_color = kwargs.pop('color', BLUE)
         for x, y, style in tr:
-            if isinstance(y, torch.Tensor):
-                y = y.detach().numpy()
-            source = ColumnDataSource(data=dict(x=x, y=y))
             if style and style[-1] in COLORS:
                 color = COLORS[style[-1]]
                 style = style[:-1]
             else:
-                color = base_color
+                color = COLORS[AUTOCOLOR.popleft()]
+            if isinstance(y, torch.Tensor):
+                y = y.detach().numpy()
+            if isinstance(y, dict):
+                x, y = list(y.keys()), list(y.values())
+            if len(x) != len(y):
+                raise ValueError(f'len(x)={len(x)} is different from len(y)={len(y)}')
+            source = ColumnDataSource(data=dict(x=x, y=y))
             if not style or '-' in style:
                 p.line('x', 'y', source=source, color=color, **kwargs)
             if '.' in style:
                 p.circle('x', 'y', source=source, color=color, **kwargs)
-        handle = None
-        if show:
-            handle = bp.show(p, notebook_handle=notebook_handle)
+        if isinstance(hline, (int, float)):
+            span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
+            p.renderers.append(span)
+        elif isinstance(vline, (int, float)):
+            span = Span(location=vline, dimension='height', line_color=color, line_width=1, level='overlay')
+            p.renderers.append(span)
+#        handle = None
+#        if show:
+#            handle = bp.show(p, notebook_handle=notebook_handle)
         return source if notebook_handle else None
     except ParseError as e:
         print(e)
@@ -154,6 +181,9 @@ def plot(*args, p=None, hover=False, mode='plot', **kwargs):
 # plot([np.array((3,2,1)), torch.tensor((1,2,3))])
 # plot([np.array((3,2,1)), torch.tensor((1,2,3))], '.-')
 # plot((1,2,3), [(1,4,9), (1,8,27)])  # two plots with same x values
+# * Errors:
+# plot([1,2], [1,2,3]) => ValueError
+# plot({1: 1, 2: 4, 3: 9}) => parabola
 
 def semilogx(*args, **kwargs):
     kwargs['mode'] = 'semilogx'
@@ -174,8 +204,53 @@ def imshow(im):
     p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=bokehpalette)
     bp.show(p)
 
-def load_ipython_extension(ipython):
-    ipython.user_ns.update(dict(figure=figure,
+class VarWatcher(object):
+#    def __init__(self, ip):
+#        self.shell = ip
+#        self.last_x = None
+#        self.figures = []
+#
+#    def pre_execute(self):
+#        self.last_x = self.shell.user_ns.get('x', None)
+#
+    def pre_run_cell(self, info):
+        FIGURE.clear()
+        AUTOCOLOR.clear()
+        AUTOCOLOR.extend('bgork')
+    pre_run_cell.bokeh_plot_method = True
+#        print('pre_run Cell code: "%s"' % info.raw_cell)
+
+#    def post_execute(self):
+#        if self.shell.user_ns.get('x', None) != self.last_x:
+#            print("x changed!")
+#
+    def post_run_cell(self, result):
+#        print('Cell code: "%s"' % result.info.raw_cell)
+        if result.error_before_exec:
+            print('Error before execution: %s' % result.error_before_exec)
+        else:
+#            p = self.shell.user_ns.get('FIGURE', [])
+#            print('(post_run) FIGURE=', FIGURE)
+            if FIGURE:
+                bp.show(FIGURE[0])
+    post_run_cell.bokeh_plot_method = True
+
+def load_ipython_extension(ip):
+    
+    # Avoid re-registering when reloading the extension
+    def register(event, function):
+        for f in ip.events.callbacks[event]:
+            if hasattr(f, 'bokeh_plot_method'):
+                ip.events.unregister(event, f)
+#                print('unregistered')
+        ip.events.register(event, function)
+
+    vw = VarWatcher()
+#    ip.events.register('pre_execute', vw.pre_execute)
+    register('pre_run_cell', vw.pre_run_cell)
+#    ip.events.register('post_execute', vw.post_execute)
+    register('post_run_cell', vw.post_run_cell)
+    ip.user_ns.update(dict(figure=figure,
         loglog_figure=loglog_figure,
         plot=plot,
         show=bp.show,
