@@ -1,6 +1,7 @@
 import re
 from collections.abc import Iterable
 from collections import deque
+from itertools import cycle
 
 USE_TORCH = 0
 
@@ -36,10 +37,31 @@ BLACK = '#000000'
 COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
 def get_color(c):
     if c == 'a':
-        c = AUTOCOLOR.popleft()
-    return COLORS[c]
+        return next(AUTOCOLOR[0])
+    else:
+        return COLORS[c]
 FIGURE = []
-AUTOCOLOR = deque()
+AUTOCOLOR = []
+AUTOCOLOR_PALETTE = [
+        "#1f77b4",    # b
+        "#2ca02c",    # g
+        "#ffbb78",    # o
+        "#d62728",    # r
+        "#9467bd", 
+        "#98df8a",    
+        "#ff7f0e", 
+        "#ff9896",
+        "#c5b0d5",
+        "#8c564b", 
+        "#c49c94",
+        "#e377c2", 
+        "#f7b6d2",
+        "#7f7f7f",
+        "#bcbd22", 
+        "#dbdb8d",
+        "#17becf", 
+        "#9edae5"
+]
 REGISTERED = {}
 
 def figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
@@ -243,7 +265,7 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
         notebook_handle = kwargs.pop('notebook_handle', False)
         if hover:
             p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
-        for x, y, style, color_str, legend in quintuples:
+        for x, y, style, color_str, legend_i in quintuples:
             color = get_color(color_str)
             if isinstance(y, torch.Tensor):
                 y = y.detach().numpy()
@@ -254,17 +276,19 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
             source = ColumnDataSource(data=dict(x=x, y=y))
             legend_set = False
             if not style or '-' in style:
-                p.line('x', 'y', source=source, color=color, legend=legend, **kwargs)
+                p.line('x', 'y', source=source, color=color, legend=legend_i, **kwargs)
                 legend_set = True
             if '.' in style:
-                _legend = None if legend_set else legend
-                p.circle('x', 'y', source=source, color=color, legend=_legend, **kwargs)
+                legend_j = None if legend_set else legend_i
+                p.circle('x', 'y', source=source, color=color, legend=legend_j, **kwargs)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
         elif isinstance(vline, (int, float)):
             span = Span(location=vline, dimension='height', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
+        if legend is not None:
+            p.legend.click_policy="hide"
 #        handle = None
 #        if show:
 #            handle = bp.show(p, notebook_handle=notebook_handle)
@@ -321,7 +345,7 @@ class VarWatcher(object):
     def pre_run_cell(self, info):
         FIGURE.clear()
         AUTOCOLOR.clear()
-        AUTOCOLOR.extend('bgork')
+        AUTOCOLOR.append(cycle(AUTOCOLOR_PALETTE))
     pre_run_cell.bokeh_plot_method = True
 #        print('pre_run Cell code: "%s"' % info.raw_cell)
 
