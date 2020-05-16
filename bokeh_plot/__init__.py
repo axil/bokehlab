@@ -42,26 +42,38 @@ def get_color(c):
         return COLORS[c]
 FIGURE = []
 AUTOCOLOR = []
-AUTOCOLOR_PALETTE = [
-        "#1f77b4",    # b
-        "#2ca02c",    # g
-        "#ffbb78",    # o
-        "#d62728",    # r
-        "#9467bd", 
-        "#98df8a",    
-        "#ff7f0e", 
-        "#ff9896",
-        "#c5b0d5",
-        "#8c564b", 
-        "#c49c94",
-        "#e377c2", 
-        "#f7b6d2",
-        "#7f7f7f",
-        "#bcbd22", 
-        "#dbdb8d",
-        "#17becf", 
-        "#9edae5"
-]
+#AUTOCOLOR_PALETTE = [
+#        "#1f77b4",    # b
+#        "#2ca02c",    # g
+#        "#ffbb78",    # o
+#        "#d62728",    # r
+#        "#9467bd", 
+#        "#98df8a",    
+#        "#ff7f0e", 
+#        "#ff9896",
+##        "#c5b0d5",
+#        "#8c564b", 
+#        "#c49c94",
+#        "#e377c2", 
+#        "#f7b6d2",
+#        "#7f7f7f",
+#        "#bcbd22", 
+#        "#dbdb8d",
+#        "#17becf", 
+#        "#9edae5"
+#]
+I20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5", "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5"]    # AaBb, interleaved
+I19 = I20.copy()
+del I19[9]                      # removing c5d0d5
+
+C20 = I20[::2] + I20[1::2]      # ABab, consecutive
+
+C19 = C20.copy()
+del C19[14]                     # removing c5d0d5              
+
+C10 = C20[:10]                  # AB, consecutive
+
+AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 REGISTERED = {}
 
 def figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
@@ -326,6 +338,13 @@ def loglog(*args, **kwargs):
     kwargs['mode'] = 'loglog'
     plot(*args, **kwargs)
 
+def hist(x, bins=30):
+    hist, edges = np.histogram(x, density=True, bins=bins)
+    p = figure()
+    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+            fill_color="navy", line_color="white", alpha=0.5)
+    bp.show(p)
+
 colormap =cm.get_cmap("viridis")
 bokehpalette = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
 def imshow(im):
@@ -386,4 +405,4 @@ def load_ipython_extension(ip):
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
-        bp=bp, imshow=imshow))
+        bp=bp, imshow=imshow, hist=hist))
