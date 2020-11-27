@@ -21,27 +21,22 @@ Several plots in one figure:
 
 <img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/simple.png" width="800">
 
-    - plot([1,2,3], [1,4,9], '.-')   
-      plot([1,2,3], [1,8,27], '.-g') # the second plot is green
+    x = [1,5,10]
+    y1 = [1,2,5]
+    y2 = [2,3,10]
 
-    - y1 = [1,2,5]
-      y2 = [2,3,10]
-      plot([y1, y2])           # automatic colors       
+    - plot(x, y1, '.-')        # solid line with dots
+      plot(x, y2, '.-g')       # the second plot is green
 
-    - x = [1,5,10]
-      y1 = [1,2,5]
-      y2 = [2,3,10]
-      plot(x, [y1, y2])
+    - plot([y1, y2])           # auto x, auto colors       
 
-    - y1 = [1,2,5]
-      y2 = [2,3,10]
-      plot([y1, y2], '.-bg')   # blue and green
+    - plot(x, [y1, y2])
 
-    - y1 = [1,2,5]
-      y2 = [2,3,10]
-      plot([y1, y2], style=['.', '.-'], color=['b', 'g'])
+    - plot([y1, y2], '.-bg')   # blue and green
 
-    - plot([1,2,3], [1,4,9], '.-', [1,2,3], [1,8,27], '.-g')
+    - plot([y1, y2], style=['.', '.-'], color=['b', 'g'])
+
+    - plot(x, y1, '.-', x, y2, '.-g')
 
 
 The following markers are supported so far:
@@ -60,14 +55,16 @@ The following colors are supported so far:
 NB The color specifier must go after the marker if both are present.
 
 Legend:
+
    - plot([1,2,3], [1,4,9], legend='plot1')
      plot([1,2,3], [2,5,10], legend='plot2')
 
    - plot([y1, y2], legend=['y1', 'y2'])
 
 Legend location:
-   plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
-   plot([1,2,3], [2,5,10], legend='plot2')
+
+   - plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
+     plot([1,2,3], [2,5,10], legend='plot2')
 
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
