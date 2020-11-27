@@ -253,7 +253,8 @@ def test_parser():
 
 # __________________________________________________________________________________
 
-def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None, legend=None, **kwargs):
+def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None, 
+         legend=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
@@ -301,6 +302,8 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
             p.renderers.append(span)
         if legend is not None:
             p.legend.click_policy="hide"
+        if legend_loc is not None:
+            p.legend.location = legend_loc
 #        handle = None
 #        if show:
 #            handle = bp.show(p, notebook_handle=notebook_handle)
