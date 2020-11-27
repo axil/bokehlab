@@ -56,15 +56,15 @@ NB The color specifier must go after the marker if both are present.
 
 Legend:
 
-   - plot([1,2,3], [1,4,9], legend='plot1')
-     plot([1,2,3], [2,5,10], legend='plot2')
+    - plot([1,2,3], [1,4,9], legend='plot1')
+      plot([1,2,3], [2,5,10], legend='plot2')
 
-   - plot([y1, y2], legend=['y1', 'y2'])
+    - plot([y1, y2], legend=['y1', 'y2'])
 
 Legend location:
 
-   - plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
-     plot([1,2,3], [2,5,10], legend='plot2')
+    - plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
+      plot([1,2,3], [2,5,10], legend='plot2')
 
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
