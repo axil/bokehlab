@@ -17,9 +17,12 @@ The following syntax is supported:
     plot([1,2,3], [1,4,9])    # x and y 
     plot([1,2,3], [1,4,9], '.-')    # x, y and line style
 
-Several plots: 
-    - plot([1,2,3], [1,4,9], '.-')   # two plots, the second one is green
-      plot([1,2,3], [1,8,27], '.-g') # in the same jupyter cell
+Several plots in one figure: 
+
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/simple.png" width="800">
+
+    - plot([1,2,3], [1,4,9], '.-')   
+      plot([1,2,3], [1,8,27], '.-g') # the second plot is green
 
     - y1 = [1,2,5]
       y2 = [2,3,10]
@@ -40,7 +43,6 @@ Several plots:
 
     - plot([1,2,3], [1,4,9], '.-', [1,2,3], [1,8,27], '.-g')
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/screenshot.png" width="800">
 
 The following markers are supported so far:
 
