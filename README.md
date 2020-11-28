@@ -75,6 +75,8 @@ Legend location:
     - plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
       plot([1,2,3], [2,5,10], legend='plot2')
 
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/legend.png" width="800">
+
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
 
