@@ -93,3 +93,11 @@ Other uses:
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
 
 See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html)
+
+## Comparison to bokeh
+
+bokeh-plot is a thin wrapper over the excellent bokeh library that cuts down the amount of boilerplate code.
+
+The following two cells are equivalent:
+
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/wrapper.png" width="800">
