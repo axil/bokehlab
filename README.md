@@ -89,4 +89,5 @@ Other uses:
 <img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/imshow.png" width="800">
 
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
+
 See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html))
