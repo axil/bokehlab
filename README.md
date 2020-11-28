@@ -83,3 +83,7 @@ https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
 `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.
 
 `plot(x, y, hover=True)` displays point coordinates on mouse hover.
+
+`imshow(a)` displays matrix as an image:
+
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/imshow.png" width="800">

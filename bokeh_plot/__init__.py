@@ -350,9 +350,12 @@ def hist(x, bins=30):
 
 colormap =cm.get_cmap("viridis")
 bokehpalette = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-def imshow(im):
-    p = figure()
-    p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=bokehpalette)
+def imshow(im, p=None, palette=None):
+    if p is None:
+        p = figure()
+    if palette is None:
+        palette = bokehpalette
+    p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=palette)
     bp.show(p)
 
 class VarWatcher(object):
