@@ -21,9 +21,18 @@ Several plots in one figure:
 
 <img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/simple.png" width="800">
 
+Interactive controls:
+
+    click and drag = pan
+    mouse wheel = zoom, 
+    wheel on x axis = scroll horizontally
+    wheel on y axis = scroll vertically
+
+Multiple plot syntax:
+
     x = [1,5,10]
-    y1 = [1,2,5]
-    y2 = [2,3,10]
+    y1 = [1,4,9]
+    y2 = [1,8,27]
 
     - plot(x, y1, '.-')        # solid line with dots
       plot(x, y2, '.-g')       # the second plot is green
