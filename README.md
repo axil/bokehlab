@@ -90,4 +90,4 @@ Other uses:
 
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
 
-See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html))
+See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html)
