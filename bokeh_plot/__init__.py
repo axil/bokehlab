@@ -24,7 +24,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -47,19 +47,19 @@ AUTOCOLOR = []
 #        "#2ca02c",    # g
 #        "#ffbb78",    # o
 #        "#d62728",    # r
-#        "#9467bd", 
-#        "#98df8a",    
-#        "#ff7f0e", 
+#        "#9467bd",
+#        "#98df8a",
+#        "#ff7f0e",
 #        "#ff9896",
 ##        "#c5b0d5",
-#        "#8c564b", 
+#        "#8c564b",
 #        "#c49c94",
-#        "#e377c2", 
+#        "#e377c2",
 #        "#f7b6d2",
 #        "#7f7f7f",
-#        "#bcbd22", 
+#        "#bcbd22",
 #        "#dbdb8d",
-#        "#17becf", 
+#        "#17becf",
 #        "#9edae5"
 #]
 I20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5", "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5"]    # AaBb, interleaved
@@ -69,7 +69,7 @@ del I19[9]                      # removing c5d0d5
 C20 = I20[::2] + I20[1::2]      # ABab, consecutive
 
 C19 = C20.copy()
-del C19[14]                     # removing c5d0d5              
+del C19[14]                     # removing c5d0d5
 
 C10 = C20[:10]                  # AB, consecutive
 
@@ -230,7 +230,7 @@ def parse(*args, color=None, legend=None):
             color = _color
         qu.append((x, y, style, color, legend))
     return qu
-    
+
 def test_parser():
     x = [1,2,3]
     y = [1,4,9]
@@ -253,7 +253,7 @@ def test_parser():
 
 # __________________________________________________________________________________
 
-def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None, 
+def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None,
          legend=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
@@ -289,11 +289,11 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
             source = ColumnDataSource(data=dict(x=x, y=y))
             legend_set = False
             if not style or '-' in style:
-                p.line('x', 'y', source=source, color=color, legend=legend_i, **kwargs)
+                p.line('x', 'y', source=source, color=color, legend_label=legend_i, **kwargs)
                 legend_set = True
             if '.' in style:
                 legend_j = None if legend_set else legend_i
-                p.circle('x', 'y', source=source, color=color, legend=legend_j, **kwargs)
+                p.circle('x', 'y', source=source, color=color, legend_label=legend_j, **kwargs)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
@@ -390,7 +390,6 @@ class VarWatcher(object):
     post_run_cell.bokeh_plot_method = True
 
 def load_ipython_extension(ip):
-    
     # Avoid re-registering when reloading the extension
     def register(event, function):
         for f in ip.events.callbacks[event]:
