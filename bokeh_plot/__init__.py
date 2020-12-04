@@ -24,7 +24,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.8'
+__version__ = '0.1.10'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -179,6 +179,9 @@ def test_parse3():
     assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
     print(parse3(x, [y, y1], '.-gr'))
 
+#def parse_args(*args, color=None, legend=None):
+#    return tr
+
 def parse(*args, color=None, legend=None):
     tr = []
     style = '-'
@@ -249,7 +252,10 @@ def test_parser():
     assert parse(x, y, '.-g', legend='aaa') == [(x, y, '.-', 'g', 'aaa')]
     assert parse(x, [y, y1], '.-', color=['r', 'g']) == [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)]
     assert parse(x, [y, y1], '.-rg', legend=['y', 'y1']) == [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')]
-    print(parse(x, [y, y1], '.-g', legend='aaa'))
+    assert parse(x, [y, y1], '.-g', legend='aaa') == \
+       [([1, 2, 3], [1, 4, 9], '.-', 'g', 'aaa'),
+        ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')]
+    print('ok')
 
 # __________________________________________________________________________________
 
@@ -289,11 +295,16 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
             source = ColumnDataSource(data=dict(x=x, y=y))
             legend_set = False
             if not style or '-' in style:
-                p.line('x', 'y', source=source, color=color, legend_label=legend_i, **kwargs)
+                kw = kwargs
+                if legend_i is not None:
+                    kwargs['legend_label'] = legend_i
+                p.line('x', 'y', source=source, color=color, **kw)
                 legend_set = True
             if '.' in style:
                 legend_j = None if legend_set else legend_i
-                p.circle('x', 'y', source=source, color=color, legend_label=legend_j, **kwargs)
+                if legend_j is not None:
+                    kwargs['legend_label'] = legend_j
+                p.circle('x', 'y', source=source, color=color, **kw)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
