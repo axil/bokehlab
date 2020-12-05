@@ -2,15 +2,17 @@ import re
 from collections.abc import Iterable
 from collections import deque
 from itertools import cycle
+from datetime import datetime
 
 USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.models import HoverTool, ColumnDataSource, Span
+from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover
 from bokeh.io import output_notebook, push_notebook
 from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
+import pandas as pd
 
 if USE_TORCH:
     import torch
@@ -24,7 +26,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.10'
+__version__ = '0.1.13'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -110,7 +112,8 @@ else:
 
 def is_2d(y):
     return isinstance(y, torch.Tensor) and y.dim()==2 or \
-       not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and isinstance(y[0], Iterable)
+       not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and \
+       isinstance(y[0], Iterable) and not isinstance(y[0], str)
 
 class ParseError(Exception):
     pass
@@ -127,7 +130,6 @@ def parse_spec(spec):
 
 def parse3(x, y, spec): # -> list of (x, y, spec)
     tr = []
-    #import ipdb; ipdb.set_trace()
     if is_2d(y):
         h, w = len(y), len(y[0])
         if isinstance(x, Missing) and w == 2 and h > 2:
@@ -197,6 +199,12 @@ def parse(*args, color=None, legend=None):
             x, y = args
         if isinstance(y, dict):
             x, y = list(y.keys()), list(y.values())
+        elif isinstance(y, pd.DataFrame):
+            if legend is None:
+                legend = y.columns.values
+            x, y = y.index.values, y.T.values
+        elif isinstance(y, pd.Series):
+            x, y = y.index.values, y.values
         tr.extend(parse3(x, y, style))
     elif len(args) % 3 == 0:
         n = len(args)//3
@@ -218,14 +226,20 @@ def parse(*args, color=None, legend=None):
     # legend
     if isinstance(legend, (list, tuple)):
         if len(legend) != n:
-            raise ValueError(f'len(legend)={len(legend)}; legend should either be a string or a tuple of length {n}')
+            raise ValueError(f'len(legend)={len(legend)}; legend should either be a string or a list/tuple/ndarray of length {n}')
+        legends = legend
+    elif isinstance(legend, np.ndarray):
+        if legend.shape != (n,):
+            raise ValueError(f'legend.shape={legend.shape}; legend shape should be ({n},)')
+        if not isinstance(legend[0], str):
+            raise ValueError(f'legend={legend}; legend elements should be strings')
         legends = legend
     elif isinstance(legend, str):
         legends = [legend] * n
     elif legend is None:
         legends = [None] * n
     else:
-        raise ValueError(f'legend={legend}; it should either be a string or a tuple of length {n}')
+        raise ValueError(f'legend={legend}; it should either be a string or a list/tuple/ndarray of length {n}')
     qu = []
     for (x, y, spec), color, legend in zip(tr, colors, legends):
         style, _color = parse_spec(spec)
@@ -259,31 +273,58 @@ def test_parser():
 
 # __________________________________________________________________________________
 
+def check_dt(quintuples):
+    res = None
+    for q in quintuples:
+        v = isinstance(q[0][0], (datetime, np.datetime64))
+        if res is None:
+            res = v
+        elif res != v:
+            raise ValueError(f'Either all x arrays should be of datetime type or none at all')
+    return res
+
+
 def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None,
          legend=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
+        quintuples = parse(*args, color=color, legend=legend)
+        is_dt = check_dt(quintuples)
         if p is None:
             if not FIGURE:
+                kw = {}#'x_axis_type': None, 'y_axis_type': None}
                 if mode == 'plot':
-                    p = figure()
+                    pass
                 elif mode == 'semilogx':
-                    p = figure(x_axis_type='log')
+                    kw['x_axis_type'] = 'log'
                 elif mode == 'semilogy':
-                    p = figure(y_axis_type='log')
+                    kw['y_axis_type'] = 'log'
                 elif mode == 'loglog':
-                    p = figure(x_axis_type='log', y_axis_type='log')
-                    print('ok')
+                    kw['x_axis_type'] = kw['y_axis_type'] = 'log'
+                if is_dt:
+                    if 'x_axis_type' in kw and kw['x_axis_type'] is not None:
+                        raise ValueError('datetime x values is incompatible with "%s"' % mode)
+                    else:
+                        kw['x_axis_type'] = 'datetime'
+                p = figure(**kw)
                 FIGURE.append(p)
 #                print('A', FIGURE)
             else:
                 p = FIGURE[0]
+                if is_dt and p.x_axis_type != 'datetime':
+                    raise ValueError('cannot plot datetime x values on a non-datetime x axis')
+                elif not is_dt and p.x_axis_type == 'datetime':
+                    raise ValueError('cannot plot non-datetime x values on a datetime x axis')
 #                print('B')
-        quintuples = parse(*args, color=color, legend=legend)
+
         notebook_handle = kwargs.pop('notebook_handle', False)
         if hover:
-            p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
+            if is_dt:
+                p.add_tools(HoverTool(tooltips=[('x', '@x{%F}'), ('y', '@y'), ('name', '$name')],
+                            formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
+            else:
+                p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
         for x, y, style, color_str, legend_i in quintuples:
             color = get_color(color_str)
             if isinstance(y, torch.Tensor):
@@ -292,18 +333,25 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
                 x, y = list(y.keys()), list(y.values())
             if len(x) != len(y):
                 raise ValueError(f'len(x)={len(x)} is different from len(y)={len(y)}')
+            if isinstance(x[0], str):
+                raise ValueError('plotting strings in x axis is not supported')
             source = ColumnDataSource(data=dict(x=x, y=y))
             legend_set = False
             if not style or '-' in style:
-                kw = kwargs
-                if legend_i is not None:
-                    kwargs['legend_label'] = legend_i
+                kw = kwargs.copy()
+                if legend_loc != 'hide' and legend_i is not None:
+                    kw['legend_label'] = legend_i
+                if hover:
+                    kw['name'] = legend_i
                 p.line('x', 'y', source=source, color=color, **kw)
                 legend_set = True
             if '.' in style:
+                kw = kwargs.copy()
                 legend_j = None if legend_set else legend_i
-                if legend_j is not None:
-                    kwargs['legend_label'] = legend_j
+                if legend_loc != 'hide' and legend_j is not None:
+                    kw['legend_label'] = legend_j
+                if hover:
+                    kw['name'] = legend_i
                 p.circle('x', 'y', source=source, color=color, **kw)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
@@ -311,10 +359,11 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
         elif isinstance(vline, (int, float)):
             span = Span(location=vline, dimension='height', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
-        if legend is not None:
-            p.legend.click_policy="hide"
-        if legend_loc is not None:
-            p.legend.location = legend_loc
+        if legend_loc != 'hide':
+            if legend is not None:
+                p.legend.click_policy="hide"
+            if legend_loc is not None:
+                p.legend.location = legend_loc
 #        handle = None
 #        if show:
 #            handle = bp.show(p, notebook_handle=notebook_handle)

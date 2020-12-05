@@ -1,0 +1,2 @@
+0.1.12 bugfix, experimental bokeh support
+0.1.13 bokeh columns are taken as the legend, legend_loc='hide'
