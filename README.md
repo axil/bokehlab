@@ -89,8 +89,10 @@ Other uses:
 * `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
 displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 
 be hidden with `legend_loc='hide'` (new in v0.1.13)
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/pandas.png" width="800">
 
 * `show_df(df)` displays pandas dataframe as a table. (new in v0.1.14)
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/datatable.png" width="800">
 
 * `plot(x, y, hover=True)` displays point coordinates on mouse hover.
 
