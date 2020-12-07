@@ -7,7 +7,7 @@ from datetime import datetime
 USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover
+from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn
 from bokeh.io import output_notebook, push_notebook
 from bokeh.layouts import layout
 from bokeh.resources import INLINE
@@ -26,7 +26,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.13'
+__version__ = '0.1.14'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -418,6 +418,16 @@ def imshow(im, p=None, palette=None):
     p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=palette)
     bp.show(p)
 
+def show_df(df):
+    source = ColumnDataSource(df)
+    columns = [
+        TableColumn(field=q, title=q)
+            for q in df.columns
+    ] 
+    data_table = DataTable(source=source, columns=columns, width=960)#, height=280)
+
+    bp.show(data_table)
+
 class VarWatcher(object):
 #    def __init__(self, ip):
 #        self.shell = ip
@@ -470,4 +480,4 @@ def load_ipython_extension(ip):
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
-        bp=bp, imshow=imshow, hist=hist))
+        bp=bp, imshow=imshow, hist=hist, show_df=show_df))
