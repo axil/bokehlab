@@ -86,18 +86,17 @@ Other uses:
 
 * `hist(x)` displays a histogram of x
 
-* `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
-displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 
-be hidden with `legend_loc='hide'` (new in v0.1.13)
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/pandas.png" width="800">
-
-* `show_df(df)` displays pandas dataframe as a table. (new in v0.1.14)
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/datatable.png" width="800">
-
 * `plot(x, y, hover=True)` displays point coordinates on mouse hover.
 
-* `imshow(a)` displays an array as an image:
+* `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
+displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 
+be hidden with `legend_loc='hide'` (new in v0.1.13):
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/pandas.png" width="800">
 
+* `show_df(df)` displays pandas dataframe as a table (new in v0.1.14):
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/datatable.png" width="800">
+
+* `imshow(a)` displays an array as an image:
 <img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/imshow.png" width="800">
 
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
