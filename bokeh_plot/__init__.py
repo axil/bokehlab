@@ -7,7 +7,8 @@ from datetime import datetime
 USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn
+from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
+    DatetimeAxis
 from bokeh.io import output_notebook, push_notebook
 from bokeh.layouts import layout
 from bokeh.resources import INLINE
@@ -26,7 +27,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.14'
+__version__ = '0.1.15'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -312,9 +313,9 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
 #                print('A', FIGURE)
             else:
                 p = FIGURE[0]
-                if is_dt and p.x_axis_type != 'datetime':
+                if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
                     raise ValueError('cannot plot datetime x values on a non-datetime x axis')
-                elif not is_dt and p.x_axis_type == 'datetime':
+                elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
                     raise ValueError('cannot plot non-datetime x values on a datetime x axis')
 #                print('B')
 

@@ -1,3 +1,4 @@
 0.1.12 bugfix, experimental bokeh support
 0.1.13 bokeh columns are taken as the legend, legend_loc='hide'
 0.1.14 display pandas dataframes with show_df
+0.1.15 several plots per figure bugfix
