@@ -27,7 +27,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.15'
+__version__ = '0.1.16'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -420,9 +420,10 @@ def imshow(im, p=None, palette=None):
     bp.show(p)
 
 def show_df(df):
-    source = ColumnDataSource(df)
+#    source = ColumnDataSource(df)
+    source = ColumnDataSource({str(k): v for k, v in df.items()})
     columns = [
-        TableColumn(field=q, title=q)
+        TableColumn(field=str(q), title=str(q))
             for q in df.columns
     ] 
     data_table = DataTable(source=source, columns=columns, width=960)#, height=280)
