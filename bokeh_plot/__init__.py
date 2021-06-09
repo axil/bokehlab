@@ -131,43 +131,65 @@ def parse_spec(spec):
 
 def parse3(x, y, spec): # -> list of (x, y, spec)
     tr = []
+    #import ipdb; ipdb.set_trace()
     if is_2d(y):
-        h, w = len(y), len(y[0])
-        if isinstance(x, Missing) and w == 2 and h > 2:
-            if isinstance(y, np.ndarray):
-                tr.append((y[:,0], y[:,1], spec))
-            else:
-                _x, _y = [], []
-                for row in y:
-                    _x.append(row[0])
-                    _y.append(row[1])
-                tr.append((_x, _y, spec))
+        labels = None
+        if isinstance(y, np.ndarray):
+            if len(y.shape) != 2:
+                raise ValueError(f'y is expected to be 1 or 2 dimensional, got {len(y.shape)} instead')
+            yy = y.T
+        elif isinstance(y, pd.DataFrame):
+            labels = list(map(str, y.columns))
+            yy = [y[col].values for col in y.columns]
         else:
-            n = len(y)
-            if isinstance(spec, (tuple, list)):
-                specs = spec
-                if len(specs) != n:
-                    raise ParseError(f'len(spec)={len(spec)} does not match len(y)={len(y)}')
+            yy = y
+        n = len(yy)    # number of plots
+        if labels is None:
+            labels = [None] * n
+#        if isinstance(x, Missing) and w == 2 and h > 2:
+#            if isinstance(y, np.ndarray):
+#                tr.append((y[:,0], y[:,1], spec))
+#            else:
+#                _x, _y = [], []
+#                for row in y:
+#                    _x.append(row[0])
+#                    _y.append(row[1])
+#                tr.append((_x, _y, spec))
+#        else:
+        #n = len(y)
+        if isinstance(spec, (tuple, list)):
+            specs = spec
+            if len(specs) != w:
+                raise ParseError(f'len(spec)={len(spec)} does not match len(y)={len(y)}')
+        else:
+            style, colors = parse_spec(spec)
+            if len(colors) == n:
+                specs = [style+c for c in colors]
             else:
-                style, colors = parse_spec(spec)
-                if len(colors) == n:
-                    specs = [style+c for c in colors]
+                specs = [style+colors]*n
+        if is_2d(x):
+            if hasattr(x, 'T'):
+                x = x.T
+            for xi, yi, si in zip(x, yy, specs):
+                tr.append((xi, yi, si))
+        else:
+            for yi, si, lb in zip(yy, specs, labels):
+                if isinstance(x, Missing):
+                    xi = np.arange(len(yi))
                 else:
-                    specs = [style+colors]*n
-            if is_2d(x):
-                for xi, yi, si in zip(x, y, specs):
-                    tr.append((xi, yi, si))
-            else:
-                for yi, si in zip(y, specs):
-                    if isinstance(x, Missing):
-                        xi = list(range(len(yi)))
-                    else:
-                        xi = x
-                    tr.append((xi, yi, si))
+                    xi = x
+                tr.append((xi, yi, si, lb))
     else:
         if isinstance(x, Missing):
-            x = list(range(len(y)))
-        tr.append((x, y, spec))
+            x = np.arange(len(y))
+        if isinstance(y, np.ndarray):
+            if len(y.shape) != 1:
+                raise ValueError(f'y is expected to be 1 or 2 dimensional, got {len(y.shape)} instead')
+        if isinstance(y, pd.DataFrame) and len(y.columns) > 0:
+            label = y.columns[0]
+        else:
+            label = None
+        tr.append((x, y, spec, label))
     return tr
 
 def test_parse3():
@@ -182,10 +204,10 @@ def test_parse3():
     assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
     print(parse3(x, [y, y1], '.-gr'))
 
-#def parse_args(*args, color=None, legend=None):
+#def parse_args(*args, color=None, label=None):
 #    return tr
 
-def parse(*args, color=None, legend=None):
+def parse(*args, color=None, label=None):
     tr = []
     style = '-'
     if len(args) in (1, 2):
@@ -200,12 +222,6 @@ def parse(*args, color=None, legend=None):
             x, y = args
         if isinstance(y, dict):
             x, y = list(y.keys()), list(y.values())
-        elif isinstance(y, pd.DataFrame):
-            if legend is None:
-                legend = y.columns.values
-            x, y = y.index.values, y.T.values
-        elif isinstance(y, pd.Series):
-            x, y = y.index.values, y.values
         tr.extend(parse3(x, y, style))
     elif len(args) % 3 == 0:
         n = len(args)//3
@@ -213,6 +229,7 @@ def parse(*args, color=None, legend=None):
             x, y, style = args[3*h:3*(h+1)]
             tr.extend(parse3(x, y, style))
     n = len(tr)
+
     # color
     if isinstance(color, (list, tuple)):
         if len(color) != n:
@@ -224,29 +241,28 @@ def parse(*args, color=None, legend=None):
         colors = 'a'*n
     else:
         raise ValueError(f'color={color}; it should either be a string or a tuple of length {n}')
+
     # legend
-    if isinstance(legend, (list, tuple)):
-        if len(legend) != n:
-            raise ValueError(f'len(legend)={len(legend)}; legend should either be a string or a list/tuple/ndarray of length {n}')
-        legends = legend
-    elif isinstance(legend, np.ndarray):
-        if legend.shape != (n,):
-            raise ValueError(f'legend.shape={legend.shape}; legend shape should be ({n},)')
-        if not isinstance(legend[0], str):
-            raise ValueError(f'legend={legend}; legend elements should be strings')
-        legends = legend
-    elif isinstance(legend, str):
-        legends = [legend] * n
-    elif legend is None:
-        legends = [None] * n
+    if isinstance(label, (list, tuple)):
+        if len(label) != n:
+            raise ValueError(f'len(label)={len(label)}; label should either be a string or a tuple of length {n}')
+        labels = label
+    elif isinstance(label, str):
+        labels = [label] * n
+    elif label is None:
+        labels = [None] * n
     else:
-        raise ValueError(f'legend={legend}; it should either be a string or a list/tuple/ndarray of length {n}')
+        raise ValueError(f'label={label}; it should either be a string or a tuple of length {n}')
     qu = []
-    for (x, y, spec), color, legend in zip(tr, colors, legends):
-        style, _color = parse_spec(spec)
-        if _color != 'a':
-            color = _color
-        qu.append((x, y, style, color, legend))
+    try:
+        for (x, y, spec, label1), color, label2 in zip(tr, colors, labels):
+            style, _color = parse_spec(spec)
+            if _color != 'a':
+                color = _color
+            qu.append((x, y, style, color, label2 if label2 is not None else label1))
+    except Exception as e:
+        print(e)
+        
     return qu
 
 def test_parser():
@@ -264,10 +280,10 @@ def test_parser():
     assert parse(x, y, '.') == [(x, y, '.', 'a', None)]
     assert parse(x, y, '.-') == [(x, y, '.-', 'a', None)]
     assert parse(x, y, '.-g') == [(x, y, '.-', 'g', None)]
-    assert parse(x, y, '.-g', legend='aaa') == [(x, y, '.-', 'g', 'aaa')]
+    assert parse(x, y, '.-g', label='aaa') == [(x, y, '.-', 'g', 'aaa')]
     assert parse(x, [y, y1], '.-', color=['r', 'g']) == [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)]
-    assert parse(x, [y, y1], '.-rg', legend=['y', 'y1']) == [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')]
-    assert parse(x, [y, y1], '.-g', legend='aaa') == \
+    assert parse(x, [y, y1], '.-rg', label=['y', 'y1']) == [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')]
+    assert parse(x, [y, y1], '.-g', label='aaa') == \
        [([1, 2, 3], [1, 4, 9], '.-', 'g', 'aaa'),
         ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')]
     print('ok')
@@ -277,6 +293,8 @@ def test_parser():
 def check_dt(quintuples):
     res = None
     for q in quintuples:
+        if len(q[0]) == 0:
+            continue
         v = isinstance(q[0][0], (datetime, np.datetime64))
         if res is None:
             res = v
@@ -286,11 +304,11 @@ def check_dt(quintuples):
 
 
 def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None,
-         legend=None, legend_loc=None, **kwargs):
+         label=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
-        quintuples = parse(*args, color=color, legend=legend)
+        quintuples = parse(*args, color=color, label=label)
         is_dt = check_dt(quintuples)
         if p is None:
             if not FIGURE:
@@ -326,7 +344,7 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
                             formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
             else:
                 p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
-        for x, y, style, color_str, legend_i in quintuples:
+        for x, y, style, color_str, label_i in quintuples:
             color = get_color(color_str)
             if isinstance(y, torch.Tensor):
                 y = y.detach().numpy()
@@ -334,25 +352,25 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
                 x, y = list(y.keys()), list(y.values())
             if len(x) != len(y):
                 raise ValueError(f'len(x)={len(x)} is different from len(y)={len(y)}')
-            if isinstance(x[0], str):
+            if len(x) and isinstance(x[0], str):
                 raise ValueError('plotting strings in x axis is not supported')
             source = ColumnDataSource(data=dict(x=x, y=y))
-            legend_set = False
+            label_set = False
             if not style or '-' in style:
                 kw = kwargs.copy()
-                if legend_loc != 'hide' and legend_i is not None:
-                    kw['legend_label'] = legend_i
+                if legend_loc != 'hide' and label_i is not None:
+                    kw['legend_label'] = label_i
                 if hover:
-                    kw['name'] = legend_i
+                    kw['name'] = label_i
                 p.line('x', 'y', source=source, color=color, **kw)
-                legend_set = True
+                label_set = True
             if '.' in style:
                 kw = kwargs.copy()
-                legend_j = None if legend_set else legend_i
-                if legend_loc != 'hide' and legend_j is not None:
-                    kw['legend_label'] = legend_j
+                label_j = None if label_set else label_i
+                if legend_loc != 'hide' and label_j is not None:
+                    kw['legend_label'] = label_j
                 if hover:
-                    kw['name'] = legend_i
+                    kw['name'] = label_i
                 p.circle('x', 'y', source=source, color=color, **kw)
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
@@ -361,7 +379,7 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
             span = Span(location=vline, dimension='height', line_color=color, line_width=1, level='overlay')
             p.renderers.append(span)
         if legend_loc != 'hide':
-            if legend is not None:
+            if label is not None:
                 p.legend.click_policy="hide"
             if legend_loc is not None:
                 p.legend.location = legend_loc
@@ -402,22 +420,44 @@ def loglog(*args, **kwargs):
     kwargs['mode'] = 'loglog'
     plot(*args, **kwargs)
 
-def hist(x, bins=30):
-    hist, edges = np.histogram(x, density=True, bins=bins)
+def hist(x, nbins=30):
+    hist, edges = np.histogram(x, density=True, bins=nbins)
     p = figure()
     p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
             fill_color="navy", line_color="white", alpha=0.5)
     bp.show(p)
 
-colormap =cm.get_cmap("viridis")
-bokehpalette = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-def imshow(im, p=None, palette=None):
+def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False):
     if p is None:
-        p = figure()
-    if palette is None:
-        palette = bokehpalette
-    p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=palette)
-    bp.show(p)
+        p = figure(int(400/im.shape[0]*im.shape[1]), 400)   # height = 400, keep aspect ratio
+    if np.issubdtype(im.dtype, np.floating):
+        if stretch:
+            _min, _max = im.min(), im.max()
+            im = (im-_min)/(_max-_min)
+        im = (im*255).astype(np.uint8)
+    elif im.dtype == np.uint8:
+        pass
+    elif np.issubdtype(im.dtype, np.integer):
+        if stretch:
+            _min, _max = im.min(), im.max()
+            if _min == _max:
+                im = np.zeros_like(im, dtype=np.uint8)
+            else:
+                im = ((im-_min)/(_max-_min)*255).astype(np.uint8)
+    if len(im.shape) == 2:
+        colormap = cm.get_cmap(cmap)
+        palette = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        h = p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=palette)
+    elif len(im.shape) == 3:
+        if im.shape[-1] == 3: # rgb
+            im = np.dstack([im, np.full_like(im[:,:,0], 255)])
+        im1 = im.view(dtype=np.uint32).reshape(im.shape[:2])
+        h = p.image_rgba(image=[np.flipud(im1)], x=[0], y=[0], dw=[im1.shape[1]], dh=[im1.shape[0]])
+    else:
+        raise ValueError('Unsupported image shape: ' + str(im.shape))
+    bp.show(p, notebook_handle=notebook_handle)
+    if notebook_handle:
+        return h
 
 def show_df(df):
 #    source = ColumnDataSource(df)
