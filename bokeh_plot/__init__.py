@@ -42,7 +42,7 @@ def get_color(c):
     if c == 'a':
         return next(AUTOCOLOR[0])
     else:
-        return COLORS[c]
+        return COLORS.get(c, c)
 FIGURE = []
 AUTOCOLOR = []
 #AUTOCOLOR_PALETTE = [
@@ -303,8 +303,9 @@ def check_dt(quintuples):
     return res
 
 
-def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=None,
-         label=None, legend_loc=None, **kwargs):
+def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, 
+        color=None, hline_color='pink', vline_color='pink', 
+        label=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
@@ -373,10 +374,10 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, color=
                     kw['name'] = label_i
                 p.circle('x', 'y', source=source, color=color, **kw)
         if isinstance(hline, (int, float)):
-            span = Span(location=hline, dimension='width', line_color=color, line_width=1, level='overlay')
+            span = Span(location=hline, dimension='width', line_color=hline_color, line_width=1, level='overlay')
             p.renderers.append(span)
         elif isinstance(vline, (int, float)):
-            span = Span(location=vline, dimension='height', line_color=color, line_width=1, level='overlay')
+            span = Span(location=vline, dimension='height', line_color=vline_color, line_width=1, level='overlay')
             p.renderers.append(span)
         if legend_loc != 'hide':
             if label is not None:
