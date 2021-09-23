@@ -28,7 +28,7 @@ Interactive controls:
     wheel on x axis = scroll horizontally
     wheel on y axis = scroll vertically
 
-Multiple plot syntax:
+Multiple plot syntax (equivalent ways to draw it):
 
     x = [1,5,10]
     y1 = [1,4,9]
@@ -87,6 +87,8 @@ Other uses:
 * `hist(x)` displays a histogram of x
 
 * `plot(x, y, hover=True)` displays point coordinates on mouse hover.
+
+* `plot(x, y, vline=1, hline=1.5, vline_color='red')` in addition to the (x, y) plot displays an infinite vertical line with x=1 and custom red color and an infinite horizontal line with y=1.5 and the default pink color.
 
 * `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
 displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 

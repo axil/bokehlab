@@ -27,7 +27,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.16'
+__version__ = '0.1.17'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -376,7 +376,7 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None,
         if isinstance(hline, (int, float)):
             span = Span(location=hline, dimension='width', line_color=hline_color, line_width=1, level='overlay')
             p.renderers.append(span)
-        elif isinstance(vline, (int, float)):
+        if isinstance(vline, (int, float)):
             span = Span(location=vline, dimension='height', line_color=vline_color, line_width=1, level='overlay')
             p.renderers.append(span)
         if legend_loc != 'hide':
