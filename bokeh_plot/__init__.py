@@ -1,3 +1,4 @@
+import sys
 import re
 from collections.abc import Iterable
 from collections import deque
@@ -27,7 +28,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.17'
+__version__ = '0.1.18'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -37,7 +38,7 @@ GREEN = "#2ca02c"
 ORANGE = '#ff7f0e'
 RED = '#d62728'
 BLACK = '#000000'
-COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
+COLORS = {'b': BLUE, 'g': GREEN, 'O': ORANGE, 'r': RED, 'k': BLACK}
 def get_color(c):
     if c == 'a':
         return next(AUTOCOLOR[0])
@@ -129,7 +130,7 @@ def parse_spec(spec):
     color = re.sub('[^a-z]', '', spec) or 'a'
     return style, color
 
-def parse3(x, y, spec): # -> list of (x, y, spec)
+def parse3(x, y, spec): # -> list of (x, y, spec, label)
     tr = []
     #import ipdb; ipdb.set_trace()
     if is_2d(y):
@@ -142,7 +143,7 @@ def parse3(x, y, spec): # -> list of (x, y, spec)
             labels = list(map(str, y.columns))
             yy = [y[col].values for col in y.columns]
         else:
-            yy = y
+            yy = y #list(col for col in zip(*y))
         n = len(yy)    # number of plots
         if labels is None:
             labels = [None] * n
@@ -189,20 +190,47 @@ def parse3(x, y, spec): # -> list of (x, y, spec)
             label = y.columns[0]
         else:
             label = None
-        tr.append((x, y, spec, label))
+        tr.append((x, y, ''.join(parse_spec(spec)), label))
     return tr
 
+def compare(a, b):
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        for q, r in zip(a, b):
+            if not compare(q, r):
+                return False
+    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        a, b = np.array(a), np.array(b)
+        if a.shape != b.shape or not np.allclose(a, b):   
+            return False
+            
+    elif a != b:
+        return False
+    return True
+
+def test(a, b):
+    if compare(a, b):
+        sys.stdout.write('.')
+        sys.stdout.flush()
+    else:
+        print(f'{repr(a)} != {repr(b)}')
+
 def test_parse3():
-    x = [1,2,3]
-    y = [1,4,9]
-    y1 = [-1,-4,-9]
-    assert parse3(x, y, '') == [(x, y, '')]
-    assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
-    assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
-    assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
-    assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
-    assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
-    print(parse3(x, [y, y1], '.-gr'))
+    m = Missing()
+    x = [1, 2, 3]
+    y = [1, 4, 9]
+    y1 = [-1, -4, -9]
+    ax = [0, 1, 2]      # auto_x
+    test(parse3(m, y, ''), [(ax, y, '-a', None)])
+    test(parse3(x, y, ''), [(x, y, '-a', None)])
+    test(parse3(m, [y, y1], ''), [(ax, y, '-a', None), (ax, y1, '-a', None)])
+    test(parse3(x, [y, y1], ''), [(x, y, '-a', None), (x, y1, '-a', None)])
+    test(parse3(x, [y, y1], ''), [(x, y, '-a', None), (x, y1, '-a', None)])
+    test(parse3(x, [y, y1], '.'), [(x, y, '.a', None), (x, y1, '.a', None)])
+    test(parse3(x, [y, y1], '.-'), [(x, y, '.-a', None), (x, y1, '.-a', None)])
+    test(parse3(x, [y, y1], 'gr'), [(x, y, '-g', None), (x, y1, '-r', None)])
+    test(parse3(x, [y, y1], '.-gr'), [(x, y, '.-g', None), (x, y1, '.-r', None)])
+    print()
+#    assert parse3([[1, 2], [3, 4], [5, 6]]) == [([0,1,2], [1,3,5], '-a'), ([0,1,2], [2,4,6], '-a')]
 
 #def parse_args(*args, color=None, label=None):
 #    return tr
@@ -275,18 +303,18 @@ def test_parser():
     #assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
     #assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
     #assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
-    assert parse(y) == [([0, 1, 2], y, '-', 'a', None)]
-    assert parse(x, y) == [(x, y, '-', 'a', None)]
-    assert parse(x, y, '.') == [(x, y, '.', 'a', None)]
-    assert parse(x, y, '.-') == [(x, y, '.-', 'a', None)]
-    assert parse(x, y, '.-g') == [(x, y, '.-', 'g', None)]
-    assert parse(x, y, '.-g', label='aaa') == [(x, y, '.-', 'g', 'aaa')]
-    assert parse(x, [y, y1], '.-', color=['r', 'g']) == [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)]
-    assert parse(x, [y, y1], '.-rg', label=['y', 'y1']) == [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')]
-    assert parse(x, [y, y1], '.-g', label='aaa') == \
+    test(parse(y), [([0, 1, 2], y, '-', 'a', None)])
+    test(parse(x, y), [(x, y, '-', 'a', None)])
+    test(parse(x, y, '.'), [(x, y, '.', 'a', None)])
+    test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
+    test(parse(x, y, '.-g'), [(x, y, '.-', 'g', None)])
+    test(parse(x, y, '.-g', label='aaa'), [(x, y, '.-', 'g', 'aaa')])
+    test(parse(x, [y, y1], '.-', color=['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
+    test(parse(x, [y, y1], '.-rg', label=['y', 'y1']), [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')])
+    test(parse(x, [y, y1], '.-g', label='aaa'), \
        [([1, 2, 3], [1, 4, 9], '.-', 'g', 'aaa'),
-        ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')]
-    print('ok')
+        ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')])
+    print()
 
 # __________________________________________________________________________________
 
@@ -524,3 +552,7 @@ def load_ipython_extension(ip):
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
         bp=bp, imshow=imshow, hist=hist, show_df=show_df))
+
+if __name__ == '__main__':
+    test_parse3()
+    test_parser()

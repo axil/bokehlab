@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="bokeh_plot",
-    version="0.1.17",
+    version="0.1.18",
     author='Lev Maximov',
     author_email='lev.maximov@gmail.com',
     url='https://github.com/axil/bokeh-plot',

@@ -59,21 +59,21 @@ The following colors are supported so far:
     'b' blue
     'g' green
     'r' red
-    'o' orange
+    'O' orange  (capital O to avoid clashes with 'o' for open dots)
     
 NB The color specifier must go after the marker if both are present.
 
 Legend:
 
-    - plot([1,2,3], [1,4,9], legend='plot1')
-      plot([1,2,3], [2,5,10], legend='plot2')
+    - plot([1,2,3], [1,4,9], label='plot1')
+      plot([1,2,3], [2,5,10], label='plot2')
 
-    - plot([y1, y2], legend=['y1', 'y2'])
+    - plot([y1, y2], label=['y1', 'y2'])
 
 Legend location:
 
-    - plot([1,2,3], [1,4,9], legend='plot1', legend_loc='top_left')
-      plot([1,2,3], [2,5,10], legend='plot2')
+    - plot([1,2,3], [1,4,9], label='plot1', legend_loc='top_left')
+      plot([1,2,3], [2,5,10], label='plot2')
 
 <img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/legend.png" width="800">
 
