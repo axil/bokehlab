@@ -3,3 +3,4 @@
 0.1.14 display pandas dataframes with show_df
 0.1.15 several plots per figure bugfix
 0.1.16 support for integer column names in show_df
+0.1.19 better pandas support, axes labels

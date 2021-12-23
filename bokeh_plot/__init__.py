@@ -28,7 +28,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.18'
+__version__ = '0.1.19'
 
 output_notebook(resources=INLINE)
 #output_notebook()
