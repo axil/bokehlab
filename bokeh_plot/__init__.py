@@ -28,7 +28,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.20'
+__version__ = '0.1.21'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -373,7 +373,7 @@ def check_dt(quintuples):
 def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, 
         color=None, hline_color='pink', vline_color='pink', 
         xlabel=None, ylabel=None, label=None, legend_loc=None, 
-        notebook_handle=False, **kwargs):
+        notebook_handle=False, return_source=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
@@ -460,6 +460,8 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None,
             handle = bp.show(p, notebook_handle=notebook_handle)
             FIGURE.clear()
             return source, handle
+        elif return_source:
+            return source
         else:
             return None
     except ParseError as e:
