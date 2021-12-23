@@ -113,9 +113,17 @@ else:
             pass
 
 def is_2d(y):
-    return isinstance(y, torch.Tensor) and y.dim()==2 or \
-       not isinstance(y, torch.Tensor) and isinstance(y, Iterable) and len(y) and \
-       isinstance(y[0], Iterable) and not isinstance(y[0], str)
+    if isinstance(y, torch.Tensor):
+        return y.dim()==2
+    elif isinstance(y, np.ndarray):
+        return y.ndim==2
+    elif isinstance(y, pd.DataFrame):
+        return True
+    elif isinstance(y, pd.Series):
+        return False
+    else:
+        return isinstance(y, Iterable) and len(y) and \
+               isinstance(y[0], Iterable) and not isinstance(y[0], str)
 
 class ParseError(Exception):
     pass
@@ -132,8 +140,12 @@ def parse_spec(spec):
 
 def parse3(x, y, spec): # -> list of (x, y, spec, label)
     tr = []
-    #import ipdb; ipdb.set_trace()
-    if is_2d(y):
+    if isinstance(x, Missing) and isinstance(y, pd.Series):
+        label = None #y.name
+        x = y.index
+        y = y.values
+        tr.append((x, y, ''.join(parse_spec(spec)), label))
+    elif is_2d(y):
         labels = None
         if isinstance(y, np.ndarray):
             if len(y.shape) != 2:
@@ -183,9 +195,13 @@ def parse3(x, y, spec): # -> list of (x, y, spec, label)
     else:
         if isinstance(x, Missing):
             x = np.arange(len(y))
+        elif isinstance(x, pd.Series):
+            x = x.values
         if isinstance(y, np.ndarray):
             if len(y.shape) != 1:
                 raise ValueError(f'y is expected to be 1 or 2 dimensional, got {len(y.shape)} instead')
+        elif isinstance(y, pd.Series):
+            y = y.values
         if isinstance(y, pd.DataFrame) and len(y.columns) > 0:
             label = y.columns[0]
         else:
@@ -297,6 +313,29 @@ def test_parser():
     x = [1,2,3]
     y = [1,4,9]
     y1 = [-1,-4,-9]
+    #assert parse3(x, y, '') == [(x, y, '')]
+    #assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
+    #assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
+    #assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
+    #assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
+    #assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
+    test(parse(y), [([0, 1, 2], y, '-', 'a', None)])
+    test(parse(x, y), [(x, y, '-', 'a', None)])
+    test(parse(x, y, '.'), [(x, y, '.', 'a', None)])
+    test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
+    test(parse(x, y, '.-g'), [(x, y, '.-', 'g', None)])
+    test(parse(x, y, '.-g', label='aaa'), [(x, y, '.-', 'g', 'aaa')])
+    test(parse(x, [y, y1], '.-', color=['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
+    test(parse(x, [y, y1], '.-rg', label=['y', 'y1']), [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')])
+    test(parse(x, [y, y1], '.-g', label='aaa'), \
+       [([1, 2, 3], [1, 4, 9], '.-', 'g', 'aaa'),
+        ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')])
+    print()
+
+def test_parser_np():
+    x = np.array([1,2,3])
+    y = np.array([1,4,9])
+    y1 = np.array([-1,-4,-9])
     #assert parse3(x, y, '') == [(x, y, '')]
     #assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
     #assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
@@ -556,3 +595,4 @@ def load_ipython_extension(ip):
 if __name__ == '__main__':
     test_parse3()
     test_parser()
+    test_parser_np()
