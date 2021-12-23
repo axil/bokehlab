@@ -80,6 +80,12 @@ Legend location:
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
 
+Axes labels:
+  
+    - plot([1,2,3], xlabel='time', ylabel='value')
+    - xlabel('time'); ylabel('value')
+    - xylabels('time', 'value')
+
 Other uses:
 
 * `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.

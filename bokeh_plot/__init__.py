@@ -372,7 +372,7 @@ def check_dt(quintuples):
 
 def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, 
         color=None, hline_color='pink', vline_color='pink', 
-        label=None, legend_loc=None, **kwargs):
+        xlabel=None, ylabel=None, label=None, legend_loc=None, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
     try:
         #show = p is None
@@ -451,6 +451,10 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None,
                 p.legend.click_policy="hide"
             if legend_loc is not None:
                 p.legend.location = legend_loc
+        if xlabel is not None:
+            p.xaxis.axis_label = xlabel
+        if ylabel is not None:
+            p.yaxis.axis_label = ylabel
 #        handle = None
 #        if show:
 #            handle = bp.show(p, notebook_handle=notebook_handle)
@@ -487,6 +491,34 @@ def semilogy(*args, **kwargs):
 def loglog(*args, **kwargs):
     kwargs['mode'] = 'loglog'
     plot(*args, **kwargs)
+
+def xlabel(label, p=None):
+    if p is None:
+        if not FIGURE:
+            p = figure(**kw)
+            FIGURE.append(p)
+        else:
+            p = FIGURE[0]
+    p.xaxis.axis_label = label
+
+def ylabel(label, p=None):
+    if p is None:
+        if not FIGURE:
+            p = figure(**kw)
+            FIGURE.append(p)
+        else:
+            p = FIGURE[0]
+    p.yaxis.axis_label = label
+
+def xylabels(xlabel, ylabel, p=None):
+    if p is None:
+        if not FIGURE:
+            p = figure(**kw)
+            FIGURE.append(p)
+        else:
+            p = FIGURE[0]
+    p.xaxis.axis_label = xlabel
+    p.yaxis.axis_label = ylabel
 
 def hist(x, nbins=30):
     hist, edges = np.histogram(x, density=True, bins=nbins)
@@ -588,6 +620,7 @@ def load_ipython_extension(ip):
         plot=plot,
         show=bp.show,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
+        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
         bp=bp, imshow=imshow, hist=hist, show_df=show_df))
