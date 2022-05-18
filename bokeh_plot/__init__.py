@@ -533,7 +533,11 @@ def hist(x, nbins=30):
             fill_color="navy", line_color="white", alpha=0.5)
     bp.show(p)
 
-def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True):
+def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True):
+    if len(ims) > 1:
+        ps = [imshow(im, cmap=cmap, stretch=stretch, show=False) for im in ims]
+        return bp.show(bl.row(ps))
+    im = ims[0]
     if p is None:
         p = figure(int(400/im.shape[0]*im.shape[1]), 400)   # height = 400, keep aspect ratio
     if np.issubdtype(im.dtype, np.floating):
