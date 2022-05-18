@@ -532,7 +532,7 @@ def hist(x, nbins=30):
             fill_color="navy", line_color="white", alpha=0.5)
     bp.show(p)
 
-def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False):
+def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False, get_p=False):
     if p is None:
         p = figure(int(400/im.shape[0]*im.shape[1]), 400)   # height = 400, keep aspect ratio
     if np.issubdtype(im.dtype, np.floating):
@@ -560,7 +560,10 @@ def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False):
         h = p.image_rgba(image=[np.flipud(im1)], x=[0], y=[0], dw=[im1.shape[1]], dh=[im1.shape[0]])
     else:
         raise ValueError('Unsupported image shape: ' + str(im.shape))
-    bp.show(p, notebook_handle=notebook_handle)
+    if get_p:
+        return p
+    else:
+        bp.show(p, notebook_handle=notebook_handle)
     if notebook_handle:
         return h
 
