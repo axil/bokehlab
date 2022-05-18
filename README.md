@@ -88,7 +88,7 @@ Axes labels:
 
 Several images side by side:
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/side-by-side.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/side-by-side2.jpg" width="800">
 
 (bp stands for bokeh.plot, bl is is a shortcut for bokeh.layouts)
 There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
