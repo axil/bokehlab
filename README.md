@@ -86,6 +86,14 @@ Axes labels:
     - xlabel('time'); ylabel('value')
     - xylabels('time', 'value')
 
+Several images side by side:
+
+<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/side-by-side.png" width="800">
+
+(bp stands for bokeh.plot, bl is is a shortcut for bokeh.layouts)
+There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
+the latter one accepts a list of lists of figures).
+
 Other uses:
 
 * `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.

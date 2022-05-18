@@ -8,6 +8,7 @@ from datetime import datetime
 USE_TORCH = 0
 
 import bokeh.plotting as bp
+import bokeh.layouts as bl
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
     DatetimeAxis
 from bokeh.io import output_notebook, push_notebook
@@ -28,7 +29,7 @@ import matplotlib.cm as cm
 
 #from .parser import parse
 
-__version__ = '0.1.21'
+__version__ = '0.1.22'
 
 output_notebook(resources=INLINE)
 #output_notebook()
@@ -532,7 +533,7 @@ def hist(x, nbins=30):
             fill_color="navy", line_color="white", alpha=0.5)
     bp.show(p)
 
-def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False, get_p=False):
+def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True):
     if p is None:
         p = figure(int(400/im.shape[0]*im.shape[1]), 400)   # height = 400, keep aspect ratio
     if np.issubdtype(im.dtype, np.floating):
@@ -560,10 +561,10 @@ def imshow(im, p=None, cmap='viridis', stretch=True, notebook_handle=False, get_
         h = p.image_rgba(image=[np.flipud(im1)], x=[0], y=[0], dw=[im1.shape[1]], dh=[im1.shape[0]])
     else:
         raise ValueError('Unsupported image shape: ' + str(im.shape))
-    if get_p:
-        return p
-    else:
+    if show:
         bp.show(p, notebook_handle=notebook_handle)
+    else:
+        return p
     if notebook_handle:
         return h
 
@@ -631,7 +632,7 @@ def load_ipython_extension(ip):
         xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
-        bp=bp, imshow=imshow, hist=hist, show_df=show_df))
+        bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df))
 
 if __name__ == '__main__':
     test_parse3()
