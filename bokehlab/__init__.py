@@ -5,6 +5,8 @@ from collections import deque
 from itertools import cycle
 from datetime import datetime
 
+from IPython.core.magic import register_line_magic
+
 USE_TORCH = 0
 
 import bokeh.plotting as bp
@@ -669,6 +671,13 @@ def load_ipython_extension(ip):
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook,
         bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df))
+
+@register_line_magic
+def bokehlab(line):
+    "my line magic"
+    print('hi')
+    return line
+#get_ipython().run_line_magic('load_ext', 'autoreload')
 
 if __name__ == '__main__':
     test_parse3()

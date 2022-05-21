@@ -1,14 +1,18 @@
-# bokeh-plot
+# bokehlab
 
 ## Installation: 
 
-    pip install bokeh-plot
+    pip install bokehlab
 
 ## Usage:
 
 To load this extension in jupyter notebook:
 
-    %load_ext bokeh_plot
+    %load_ext bokehlab
+
+Or even shorter (copy bokelab_magic.py to ~\.ipython\profile_default\startup):
+
+    %bokehlab
 
 The following syntax is supported:
 
@@ -19,7 +23,7 @@ The following syntax is supported:
 
 Several plots in one figure: 
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/simple.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/simple.png" width="800">
 
 Interactive controls:
 
@@ -75,7 +79,7 @@ Legend location:
     - plot([1,2,3], [1,4,9], label='plot1', legend_loc='top_left')
       plot([1,2,3], [2,5,10], label='plot2')
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/legend.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/legend.png" width="800">
 
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
@@ -92,7 +96,7 @@ Several images side by side:
 
 All the images are displayed in a row. For more tricky layouts
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/side-by-side2.jpg" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/side-by-side2.jpg" width="800">
 
 Here `bp` stands for `bokeh.plot`, `bl` is is a shortcut for `bokeh.layouts`.
 There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
@@ -111,13 +115,13 @@ Other uses:
 * `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
 displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 
 be hidden with `legend_loc='hide'` (new in v0.1.13):
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/pandas.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/pandas.png" width="800">
 
 * `show_df(df)` displays pandas dataframe as a table (new in v0.1.14):
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/datatable.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/datatable.png" width="800">
 
 * `imshow(a)` displays an array as an image:
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/imshow.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/imshow.png" width="800">
 
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
 
@@ -125,8 +129,8 @@ See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.o
 
 ## Comparison to bokeh
 
-bokeh-plot is a thin wrapper over the excellent bokeh library that cuts down the amount of boilerplate code.
+bokehlab is a thin wrapper over the excellent bokeh library that cuts down the amount of boilerplate code.
 
 The following two cells are equivalent:
 
-<img src="https://raw.githubusercontent.com/axil/bokeh-plot/master/img/wrapper.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/wrapper.png" width="800">
