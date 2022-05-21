@@ -7,3 +7,4 @@
 0.1.20 debugged notebook_handle
 0.1.21 return_source flag
 0.1.22 bl shortcut, imshow(show=True) flag
+0.1.23 imshow: several images in a row

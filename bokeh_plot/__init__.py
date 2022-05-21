@@ -533,13 +533,45 @@ def hist(x, nbins=30):
             fill_color="navy", line_color="white", alpha=0.5)
     bp.show(p)
 
-def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True):
+def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True, 
+           link=True, axes=False, toolbar=True, compact=True, merge_tools=True, toolbar_location='right'):
     if len(ims) > 1:
-        ps = [imshow(im, cmap=cmap, stretch=stretch, show=False) for im in ims]
-        return bp.show(bl.row(ps))
+        ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, compact=compact, show=False) 
+                for i,im in enumerate(ims)]
+        for pi in ps[1:]:
+            pi.x_range = ps[0].x_range
+            pi.y_range = ps[0].y_range
+        return bp.show(bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location))
+    if isinstance(ims[0], (list, tuple)):
+        ims = ims[0]
+        if not isinstance(ims[0], (list, tuple)):
+            ims = [ims]
+        ps = []
+        for i, ims_row in enumerate(ims):
+            ps_row = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, compact=compact, show=False) 
+                      for i,im in enumerate(ims_row)]
+            if link:
+                if i == 0:
+                    p0 = ps_row[0]
+                    for pi in ps_row[1:]:
+                        pi.x_range = p0.x_range
+                        pi.y_range = p0.y_range
+                else:
+                    for pi in ps_row:
+                        pi.x_range = p0.x_range
+                        pi.y_range = p0.y_range
+            ps.append(ps_row)
+        return bp.show(bl.gridplot(ps, merge_tools=merge_tools, toolbar_location=toolbar_location))
+
     im = ims[0]
     if p is None:
-        p = figure(int(400/im.shape[0]*im.shape[1]), 400)   # height = 400, keep aspect ratio
+        width = 300 if compact else 400
+        p = figure(int(width/im.shape[0]*im.shape[1]), width)   # width = 400, keep aspect ratio
+    if axes is False:
+        p.axis.visible=False
+    if toolbar is False:
+        p.toolbar.logo = None
+        p.toolbar_location = None
     if np.issubdtype(im.dtype, np.floating):
         if stretch:
             _min, _max = im.min(), im.max()
