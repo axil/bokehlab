@@ -1,7 +1,7 @@
 # bokehlab
 
-This is a thin wrapper over the excellent interactive plotting library bokeh to introduce the familiar matplotlib/MatLab syntax.
-Works both in classic jupyter-notebook and JupyterLab.
+Bolehlab is an interactive plotting library with the familiar matplotlib/matlab syntax.
+Built upon an excellent lib `bokeh`. Works in both classic jupyter-notebook and JupyterLab.
 
 ## Installation: 
 
