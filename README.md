@@ -1,10 +1,13 @@
 # bokehlab
 
+This is a thin wrapper over the excellent interactive plotting library bokeh to introduce the familiar matplotlib/MatLab syntax.
+Works both in classic jupyter-notebook and JupyterLab.
+
 ## Installation: 
 
     pip install bokehlab
 
-## Usage:
+## Basic plotting:
 
 To load this extension in jupyter notebook (both classic jupyter and jupyter lab):
 
@@ -14,7 +17,7 @@ Or even shorter (copy bokelab_magic.py to ~\.ipython\profile_default\startup):
 
     %bokehlab
 
-Basic usage:
+Basic plotting:
 
     plot([1,4,9])             # dots 
     plot([1,4,9], '.-')       # line and dots 
@@ -100,6 +103,8 @@ Other uses:
 
 * `plot(x, y, vline=1, hline=1.5, vline_color='red')` in addition to the (x, y) plot displays an infinite vertical line with x=1 and custom red color and an infinite horizontal line with y=1.5 and the default pink color.
 
+## Visualizing Pandas Dataframes
+
 * `plot(df)` plots all columns of the dataframe as separate lines on the same figure with column names 
 displayed in the legend and with index taken as the x axis values. If the legend grows too long, it can 
 be hidden with `legend_loc='hide'` (new in v0.1.13):
@@ -108,24 +113,23 @@ be hidden with `legend_loc='hide'` (new in v0.1.13):
 * `show_df(df)` displays pandas dataframe as a table (new in v0.1.14):
 <img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/datatable.png" width="800">
 
+## Displaying Images
+
 * `imshow(a)` displays an array as an image:
+
 <img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/imshow.png" width="800">
 
-Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
+Complete list of colormaps: [https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html](https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html)
 
-Several images side by side:
+* `imshow(im1, im2, ...)` shows several images side by side with linked panning and zooming (`link=False` to disable):
 
-    - imshow(im1, im2)
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/two_images.png" width="800">
 
-All the images are displayed in a row. For more tricky layouts
+* `imshow([[im1, im2, ...], [im3, im4, ... ], ...])` displays a matrix of images with panning and zooming linked row-wise:
 
-<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/two_images.jpg" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/imshow2x3.png" width="800">
 
-Here `bp` stands for `bokeh.plot`, `bl` is is a shortcut for `bokeh.layouts`.
-There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
-the latter one accepts a list of lists of figures).
-
-See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html)
+See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html).
 
 ## Comparison to bokeh
 
