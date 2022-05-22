@@ -1,7 +1,7 @@
 # bokehlab
 
 Bolehlab is an interactive plotting library with the familiar matplotlib/matlab syntax.  
-Built upon an excellent lib `bokeh`. Works in both classic jupyter-notebook and JupyterLab.
+Built upon [bokeh](https://bokeh.org/) visualization library. Works in both classic jupyter-notebook and JupyterLab.
 
 ## Installation: 
 
@@ -133,8 +133,8 @@ See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.o
 
 ## Comparison to bokeh
 
-bokehlab is a thin wrapper over the excellent bokeh library that cuts down the amount of boilerplate code.
+Bokehlab is a thin wrapper over the excellent library `bokeh` primarily aimed at cutting down the amount of boilerplate code.
 
-The following two cells are equivalent:
+The following commands are equivalent:
 
-<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/wrapper.png" width="800">
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/bokehlab_vs_bokeh.png" width="800">
