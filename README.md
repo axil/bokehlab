@@ -6,7 +6,7 @@
 
 ## Usage:
 
-To load this extension in jupyter notebook:
+To load this extension in jupyter notebook (both classic jupyter and jupyter lab):
 
     %load_ext bokehlab
 
@@ -14,9 +14,9 @@ Or even shorter (copy bokelab_magic.py to ~\.ipython\profile_default\startup):
 
     %bokehlab
 
-The following syntax is supported:
+Basic usage:
 
-    plot([1,4,9])             # x is automatic 
+    plot([1,4,9])             # dots 
     plot([1,4,9], '.-')       # line and dots 
     plot([1,2,3], [1,4,9])    # x and y 
     plot([1,2,3], [1,4,9], '.-')    # x, y and line style
@@ -32,7 +32,7 @@ Interactive controls:
     wheel on x axis = scroll horizontally
     wheel on y axis = scroll vertically
 
-Multiple plot syntax (equivalent ways to draw it):
+Multiple plots syntax (equivalent ways to draw it):
 
     x = [1,5,10]
     y1 = [1,4,9]
