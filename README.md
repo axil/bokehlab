@@ -90,18 +90,6 @@ Axes labels:
     - xlabel('time'); ylabel('value')
     - xylabels('time', 'value')
 
-Several images side by side:
-
-    - imshow(im1, im2)
-
-All the images are displayed in a row. For more tricky layouts
-
-<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/side-by-side2.jpg" width="800">
-
-Here `bp` stands for `bokeh.plot`, `bl` is is a shortcut for `bokeh.layouts`.
-There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
-the latter one accepts a list of lists of figures).
-
 Other uses:
 
 * `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.
@@ -124,6 +112,18 @@ be hidden with `legend_loc='hide'` (new in v0.1.13):
 <img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/imshow.png" width="800">
 
 Complete list of palettes: https://docs.bokeh.org/en/latest/docs/reference/palettes.html
+
+Several images side by side:
+
+    - imshow(im1, im2)
+
+All the images are displayed in a row. For more tricky layouts
+
+<img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/two_images.jpg" width="800">
+
+Here `bp` stands for `bokeh.plot`, `bl` is is a shortcut for `bokeh.layouts`.
+There're three common layouts: `bl.row`, `bl.column` and `bl.gridplot` (the former two accept list of figures,
+the latter one accepts a list of lists of figures).
 
 See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html)
 
