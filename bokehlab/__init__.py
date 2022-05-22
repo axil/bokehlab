@@ -562,8 +562,8 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
                     for pi in ps_row:
                         pi.x_range = p0.x_range
                         pi.y_range = p0.y_range
-            ps.append(ps_row)
-        return bp.show(bl.gridplot(ps, merge_tools=merge_tools, toolbar_location=toolbar_location))
+            ps.append(bl.gridplot([ps_row], merge_tools=merge_tools, toolbar_location=toolbar_location))
+        return bp.show(bl.column(ps))
 
     im = ims[0]
     if p is None:
