@@ -6,16 +6,16 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="bokeh_plot",
-    version="0.1.22",
+    name="bokehlab",
+    version="0.2.2",
     author='Lev Maximov',
     author_email='lev.maximov@gmail.com',
-    url='https://github.com/axil/bokeh-plot',
-    description="Matlab-inspired call syntax for bokeh plots",
+    url='https://github.com/axil/bokehlab',
+    description="Interactive plotting with familiar syntax in jupyter notebooks.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=['bokeh'],
-    packages=['bokeh_plot'],
+    install_requires=['bokeh', 'pandas', 'matplotlib'],
+    packages=['bokehlab'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -23,5 +23,5 @@ setuptools.setup(
     ],
     license="MIT License",
     zip_safe=False,
-    keywords=['bokeh', 'jupyter', 'notebook', 'plot'],
+    keywords=['bokeh', 'jupyter', 'notebook', 'plot', 'interactive'],
 )
