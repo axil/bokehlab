@@ -32,8 +32,8 @@ Interactive controls:
 
     click and drag = pan
     mouse wheel = zoom, 
-    wheel on x axis = scroll horizontally
-    wheel on y axis = scroll vertically
+    wheel on x axis = zoom horizontally
+    wheel on y axis = zoom vertically
 
 Multiple plots syntax (equivalent ways to draw it):
 
