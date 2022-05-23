@@ -155,6 +155,7 @@ def parse3(x, y, spec): # -> list of (x, y, spec, label)
                 raise ValueError(f'y is expected to be 1 or 2 dimensional, got {len(y.shape)} instead')
             yy = y.T
         elif isinstance(y, pd.DataFrame):
+            x = y.index
             labels = list(map(str, y.columns))
             yy = [y[col].values for col in y.columns]
         else:
@@ -175,8 +176,8 @@ def parse3(x, y, spec): # -> list of (x, y, spec, label)
         #n = len(y)
         if isinstance(spec, (tuple, list)):
             specs = spec
-            if len(specs) != w:
-                raise ParseError(f'len(spec)={len(spec)} does not match len(y)={len(y)}')
+            if len(specs) != n:
+                raise ParseError(f'len(spec)={len(spec)} does not match len(y)={n}')
         else:
             style, colors = parse_spec(spec)
             if len(colors) == n:
@@ -187,7 +188,7 @@ def parse3(x, y, spec): # -> list of (x, y, spec, label)
             if hasattr(x, 'T'):
                 x = x.T
             for xi, yi, si in zip(x, yy, specs):
-                tr.append((xi, yi, si))
+                tr.append((xi, yi, si, None))
         else:
             for yi, si, lb in zip(yy, specs, labels):
                 if isinstance(x, Missing):
@@ -217,11 +218,11 @@ def compare(a, b):
         for q, r in zip(a, b):
             if not compare(q, r):
                 return False
-    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+    elif isinstance(a, (np.ndarray, pd.Index, pd.Series)) or \
+         isinstance(b, (np.ndarray, pd.Index, pd.Series)):
         a, b = np.array(a), np.array(b)
         if a.shape != b.shape or not np.allclose(a, b):   
             return False
-            
     elif a != b:
         return False
     return True
@@ -236,6 +237,7 @@ def test(a, b):
 def test_parse3():
     m = Missing()
     x = [1, 2, 3]
+    x1 = [-1, -2, -3]
     y = [1, 4, 9]
     y1 = [-1, -4, -9]
     ax = [0, 1, 2]      # auto_x
@@ -248,6 +250,7 @@ def test_parse3():
     test(parse3(x, [y, y1], '.-'), [(x, y, '.-a', None), (x, y1, '.-a', None)])
     test(parse3(x, [y, y1], 'gr'), [(x, y, '-g', None), (x, y1, '-r', None)])
     test(parse3(x, [y, y1], '.-gr'), [(x, y, '.-g', None), (x, y1, '.-r', None)])
+    test(parse3([x, x1], [y, y1], ''), [(x, y, '-a', None), (x1, y1, '-a', None)])
     print()
 #    assert parse3([[1, 2], [3, 4], [5, 6]]) == [([0,1,2], [1,3,5], '-a'), ([0,1,2], [2,4,6], '-a')]
 
@@ -312,16 +315,11 @@ def parse(*args, color=None, label=None):
         
     return qu
 
-def test_parser():
+def test_parse():
     x = [1,2,3]
+    x1 = [-1,-2,-3]
     y = [1,4,9]
     y1 = [-1,-4,-9]
-    #assert parse3(x, y, '') == [(x, y, '')]
-    #assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
-    #assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
-    #assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
-    #assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
-    #assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
     test(parse(y), [([0, 1, 2], y, '-', 'a', None)])
     test(parse(x, y), [(x, y, '-', 'a', None)])
     test(parse(x, y, '.'), [(x, y, '.', 'a', None)])
@@ -329,22 +327,17 @@ def test_parser():
     test(parse(x, y, '.-g'), [(x, y, '.-', 'g', None)])
     test(parse(x, y, '.-g', label='aaa'), [(x, y, '.-', 'g', 'aaa')])
     test(parse(x, [y, y1], '.-', color=['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
+    test(parse([x, x1], [y, y1], '.-', color=['r', 'g']), [(x, y, '.-', 'r', None), (x1, y1, '.-', 'g', None)])
     test(parse(x, [y, y1], '.-rg', label=['y', 'y1']), [(x, y, '.-', 'r', 'y'), (x, y1, '.-', 'g', 'y1')])
     test(parse(x, [y, y1], '.-g', label='aaa'), \
        [([1, 2, 3], [1, 4, 9], '.-', 'g', 'aaa'),
         ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')])
     print()
 
-def test_parser_np():
+def test_parse_np():
     x = np.array([1,2,3])
     y = np.array([1,4,9])
     y1 = np.array([-1,-4,-9])
-    #assert parse3(x, y, '') == [(x, y, '')]
-    #assert parse3(x, [y, y1], '') == [(x, y, '-a'), (x, y1, '-a')]
-    #assert parse3(x, [y, y1], '.') == [(x, y, '.a'), (x, y1, '.a')]
-    #assert parse3(x, [y, y1], '.-') == [(x, y, '.-a'), (x, y1, '.-a')]
-    #assert parse3(x, [y, y1], 'gr') == [(x, y, '-g'), (x, y1, '-r')]
-    #assert parse3(x, [y, y1], '.-gr') == [(x, y, '.-g'), (x, y1, '.-r')]
     test(parse(y), [([0, 1, 2], y, '-', 'a', None)])
     test(parse(x, y), [(x, y, '-', 'a', None)])
     test(parse(x, y, '.'), [(x, y, '.', 'a', None)])
@@ -358,6 +351,13 @@ def test_parser_np():
         ([1, 2, 3], [-1, -4, -9], '.-', 'g', 'aaa')])
     print()
 
+def test_parse_pd():
+    x = np.array([1,2,3])
+    y = np.array([1,4,9])
+    y1 = np.array([-1,-4,-9])
+    df = pd.DataFrame({'y': y, 'y1': y1}, index=x)
+    test(parse(df), [(x, y, '-', 'a', 'y'), (x, y1, '-', 'a', 'y1')])
+    print()
 # __________________________________________________________________________________
 
 def check_dt(quintuples):
@@ -373,8 +373,9 @@ def check_dt(quintuples):
     return res
 
 
-def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None, 
-        color=None, hline_color='pink', vline_color='pink', 
+def plot(*args, p=None, hover=False, mode='plot', color=None, 
+        plot_width=900, plot_height=300,
+        hline=None, vline=None, hline_color='pink', vline_color='pink', 
         xlabel=None, ylabel=None, label=None, legend_loc=None, 
         notebook_handle=False, return_source=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
@@ -384,7 +385,7 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None,
         is_dt = check_dt(quintuples)
         if p is None:
             if not FIGURE:
-                kw = {}#'x_axis_type': None, 'y_axis_type': None}
+                kw = {'plot_width': plot_width, 'plot_height': plot_height}#'x_axis_type': None, 'y_axis_type': None}
                 if mode == 'plot':
                     pass
                 elif mode == 'semilogx':
@@ -443,12 +444,24 @@ def plot(*args, p=None, hover=False, mode='plot', hline=None, vline=None,
                 if hover:
                     kw['name'] = label_i
                 p.circle('x', 'y', source=source, color=color, **kw)
+
         if isinstance(hline, (int, float)):
-            span = Span(location=hline, dimension='width', line_color=hline_color, line_width=1, level='overlay')
-            p.renderers.append(span)
+            hline = [hline]
+        if isinstance(hline, (list, tuple)):
+            for y in hline:
+                span = Span(location=y, dimension='width', line_color=hline_color, line_width=1, level='overlay')
+                p.renderers.append(span)
+        elif hline is not None:
+            raise TypeError(f'Unsupported type of hline: {type(hline)}')
+
         if isinstance(vline, (int, float)):
-            span = Span(location=vline, dimension='height', line_color=vline_color, line_width=1, level='overlay')
-            p.renderers.append(span)
+            vline = [vline]
+        if isinstance(vline, (list, tuple)):
+            for x in vline:
+                span = Span(location=x, dimension='height', line_color=vline_color, line_width=1, level='overlay')
+                p.renderers.append(span)
+        elif vline is not None:
+            raise TypeError(f'Unsupported type of vline: {type(vline)}')
         if legend_loc != 'hide':
             if label is not None:
                 p.legend.click_policy="hide"
@@ -672,14 +685,8 @@ def load_ipython_extension(ip):
         push_notebook=push_notebook,
         bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df))
 
-@register_line_magic
-def bokehlab(line):
-    "my line magic"
-    print('hi')
-    return line
-#get_ipython().run_line_magic('load_ext', 'autoreload')
-
 if __name__ == '__main__':
     test_parse3()
-    test_parser()
-    test_parser_np()
+    test_parse()
+    test_parse_np()
+    test_parse_pd()
