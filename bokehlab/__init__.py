@@ -7,7 +7,7 @@ from datetime import datetime
 
 from IPython.core.magic import register_line_magic
 
-USE_TORCH = 0
+#USE_TORCH = 0
 
 import bokeh.plotting as bp
 import bokeh.layouts as bl
@@ -19,12 +19,12 @@ from bokeh.resources import INLINE
 import numpy as np
 import pandas as pd
 
-if USE_TORCH:
-    import torch
-else:
-    class torch:
-        class Tensor:
-            pass
+#if USE_TORCH:
+#    import torch
+#else:
+#    class torch:
+#        class Tensor:
+#            pass
 
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
@@ -35,6 +35,11 @@ __version__ = '0.2.3'
 
 output_notebook(resources=INLINE)
 #output_notebook()
+
+DEFAULT_WIDTH = 900
+DEFAULT_HEIGHT = 300
+DEFAULT_IMAGE_WIDTH = 300
+DEFAULT_IMAGE_HEIGHT = 300
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
@@ -83,50 +88,16 @@ C10 = C20[:10]                  # AB, consecutive
 AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 REGISTERED = {}
 
-def figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
-    return bp.figure(plot_width=plot_width, plot_height=plot_height,
+def figure(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, active_scroll='wheel_zoom', **kwargs):
+    return bp.figure(plot_width=width, plot_height=height,
                      active_scroll=active_scroll, **kwargs)
 
-def loglog_figure(plot_width=900, plot_height=300, active_scroll='wheel_zoom', **kwargs):
-    return bp.figure(plot_width=plot_width, plot_height=plot_height,
+def loglog_figure(width=900, height=300, active_scroll='wheel_zoom', **kwargs):
+    return bp.figure(plot_width=width, plot_height=height,
             active_scroll=active_scroll,
             x_axis_type='log', y_axis_type='log', **kwargs)
 
-#from itertools import zip_longest
-#def grouper(iterable, n, fillvalue=None):
-#    "Collect data into fixed-length chunks or blocks"
-#    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
-#    args = [iter(iterable)] * n
-#    return zip_longest(*args, fillvalue=fillvalue)
-#q = len(style)//n
-#styles = [''.join(q) for q in grouper(style, q)]
-
 # ________________________________ parser __________________________________________
-
-import re
-from collections.abc import Iterable
-
-#USE_TORCH = 0
-#
-#if USE_TORCH:
-#    import torch
-#else:
-#    class torch:
-#        class Tensor:
-#            pass
-
-#def is_2d(y):
-#    if isinstance(y, torch.Tensor):
-#        return y.dim()==2
-#    elif isinstance(y, np.ndarray):
-#        return y.ndim==2
-#    elif isinstance(y, pd.DataFrame):
-#        return True
-#    elif isinstance(y, pd.Series):
-#        return False
-#    else:
-#        return isinstance(y, Iterable) and len(y) and \
-#               isinstance(y[0], Iterable) and not isinstance(y[0], str)
 
 class ParseError(Exception):
     pass
@@ -167,10 +138,22 @@ def choose(a, b, name):
     else:
         return a if a is not None else b
 
-def broadcast(v, n, default, name):
+def broadcast_str(v, n, default, name):
     if v is None:
         v = [default] * n
     elif isinstance(v, str):
+        v = [v] * n
+    elif isinstance(v, (list, tuple)):
+        if len(v) == 1:
+            v *= n
+        elif len(v) != n:
+            raise ValueError(f'len({name})={len(v)} does not match len(y)={n}')
+    return v
+
+def broadcast_num(v, n, default, name):
+    if v is None:
+        v = [default] * n
+    elif isinstance(v, (int, float)):
         v = [v] * n
     elif isinstance(v, (list, tuple)):
         if len(v) == 1:
@@ -218,14 +201,21 @@ def parse(*args, style=None, color=None, label=None):
             raise ValueError(f'y is expected to be 1 or 2 dimensional, got {len(y.shape)} instead')
 
     elif isinstance(y, (list, tuple)):
-        if len(y) == 0:
-            pass
-        elif len(y) == 1:
-            pass
-        elif len(y) == 2:
+        if len(y) == 0:         # plot([], [])
             pass
         else:
-            y = [y]
+            if isinstance(y[0], (int, float)):      # flat list: [1,2,3]
+                y = [y]
+            elif isinstance(y[0], (list, tuple)):   
+                if len(y[0]) > 0:
+                    if isinstance(y[0][0], (int, float)):  # nested list: [[1,2,3],[4,5,6]]
+                        pass
+                    else:
+                        raise TypeError(f'Unsupported y[0][0] type: {type(y[0][0])}')
+            elif isinstance(y[0], np.ndarray):       # list of numpy arrays
+                pass
+            else:
+                raise TypeError(f'Unsupported y[0] type: {type(y[0])}')
 
     elif isinstance(y, dict):
         if label is None:
@@ -268,58 +258,52 @@ def parse(*args, style=None, color=None, label=None):
         if len(x) == 0:
             if len(y) != 0:
                 raise ValueError('Length of x is 0 while len(y) is {len(y)}')
-        elif len(x) == 1 and n != 1:
-            x *= n
-        elif len(x) == 2:
-            pass
-        else:
-            x = [x]
+        elif isinstance(x[0], (int, float)):
+            x = [x] * n
+        elif isinstance(x[0], (list, tuple, np.ndarray)):
+            if len(x) == 1:
+                x *= n
+            elif len(x) != n:
+                raise ValueError(f'Number of x arrays = {len(x)} must either match number of y arrays = {n} or be equal to one')
 
-    style = broadcast(style, n, '-', 'style')
-    color = broadcast(color, n, 'a', 'color')
-    label = broadcast(label, n, None, 'label')
+    style = broadcast_str(style, n, '-', 'style')
+    color = broadcast_str(color, n, 'a', 'color')
 
-    return list(zip(x, y, style, color, label))
+    return list(zip(x, y, style, color))
 
 def test_parse_arr(x, x1, y, y1):
     x0 = [0, 1, 2]
-    test(parse(y), [(x0, y, '-', 'a', None)])
+    test(parse(y), [(x0, y, '-', 'a')])
     
-    test(parse(y), [(x0, y, '-', 'a', None)])
-    test(parse(y, '.-'), [(x0, y, '.-', 'a', None)])
-    test(parse(y, '.-'), [(x0, y, '.-', 'a', None)])
-    test(parse(y, color='g'), [(x0, y, '-', 'g', None)])
-    test(parse(y, label='y'), [(x0, y, '-', 'a', 'y')])
-    test(parse(y, '.-', 'g'), [(x0, y, '.-', 'g', None)])
-    test(parse(y, '.-', 'g', 'y'), [(x0, y, '.-', 'g', 'y')])
+    test(parse(y), [(x0, y, '-', 'a')])
+    test(parse(y, '.-'), [(x0, y, '.-', 'a')])
+    test(parse(y, style='.-'), [(x0, y, '.-', 'a')])
+    test(parse(y, color='g'), [(x0, y, '-', 'g')])
+    test(parse(y, '.-', 'g'), [(x0, y, '.-', 'g')])
     
-    test(parse(x, y), [(x, y, '-', 'a', None)])
-    test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
-    test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g', None)])
-    test(parse(x, y, '.-', 'g', 'y'), [(x, y, '.-', 'g', 'y')])
+    test(parse(x, y), [(x, y, '-', 'a')])
+    test(parse(x, y, '.-'), [(x, y, '.-', 'a')])
+    test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g')])
     
-    test(parse(x, y, style='.-'), [(x, y, '.-', 'a', None)])
-    test(parse(x, y, color='g'), [(x, y, '-', 'g', None)])
+    test(parse(x, y, style='.-'), [(x, y, '.-', 'a')])
+    test(parse(x, y, color='g'), [(x, y, '-', 'g')])
     test(parse(x, y, label='y'), [(x, y, '-', 'a', 'y')])
-    test(parse(x, y, style='.-', color='g'), [(x, y, '.-', 'g', None)])
-    test(parse(x, y, style='.-', color='g', label='y'), [(x, y, '.-', 'g', 'y')])
+    test(parse(x, y, style='.-', color='g'), [(x, y, '.-', 'g')])
     
-    test(parse(x, [y, y1]), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)])
-    test(parse(x, [y, y1], '.-'), [(x, y, '.-', 'a', None), (x, y1, '.-', 'a', None)])
-    test(parse(x, [y, y1], ['.', '-']), [(x, y, '.', 'a', None), (x, y1, '-', 'a', None)])
-    test(parse(x, [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
-    test(parse(x, [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x, y1, '-', 'g', None)])
-    test(parse(x, [y, y1], ['.', '-'], ['r', 'g'], ['y', 'y1']), [(x, y, '.', 'r', 'y'), (x, y1, '-', 'g', 'y1')])
+    test(parse(x, [y, y1]), [(x, y, '-', 'a'), (x, y1, '-', 'a')])
+    test(parse(x, [y, y1], '.-'), [(x, y, '.-', 'a'), (x, y1, '.-', 'a')])
+    test(parse(x, [y, y1], ['.', '-']), [(x, y, '.', 'a'), (x, y1, '-', 'a')])
+    test(parse(x, [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r'), (x, y1, '.-', 'g')])
+    test(parse(x, [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r'), (x, y1, '-', 'g')])
     
-    test(parse([x, x1], [y, y1]), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
-    test(parse([x, x1], [y, y1], '.-'), [(x, y, '.-', 'a', None), (x1, y1, '.-', 'a', None)])
-    test(parse([x, x1], [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x1, y1, '.-', 'g', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['b']), [(x, y, '.', 'b', None), (x1, y1, '-', 'b', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x1, y1, '-', 'g', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g'], ['y', 'y1']), [(x, y, '.', 'r', 'y'), (x1, y1, '-', 'g', 'y1')])
+    test(parse([x, x1], [y, y1]), [(x, y, '-', 'a'), (x1, y1, '-', 'a')])
+    test(parse([x, x1], [y, y1], '.-'), [(x, y, '.-', 'a'), (x1, y1, '.-', 'a')])
+    test(parse([x, x1], [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r'), (x1, y1, '.-', 'g')])
+    test(parse([x, x1], [y, y1], ['.', '-'], ['b']), [(x, y, '.', 'b'), (x1, y1, '-', 'b')])
+    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r'), (x1, y1, '-', 'g')])
     print()
 
-def test_parse_arrs():
+def test_parse_arrays():
     x = [1, 2, 3]
     x1 = [-1, -2, -3]
     y = [1, 4, 9]
@@ -338,13 +322,12 @@ def test_parse_np():
     y1 = [-1, -4, -9]
     xx = np.array([[1, 2, 3], [-1, -2, -3]]).T
     yy = np.array([[1, 4, 9], [-1, -4, -9]]).T
-    test(parse(yy), [(x0, y, '-', 'a', None), (x0, y1, '-', 'a', None)])
-    test(parse(x, yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
-    test(parse(np.array(x), yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
-    test(parse(xx, yy), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
-    test(parse(xx, yy, '.'), [(x, y, '.', 'a', None), (x1, y1, '.', 'a', None)])
-    test(parse(xx, yy, '.-', 'g'), [(x, y, '.-', 'g', None), (x1, y1, '.-', 'g', None)])
-    test(parse(xx, yy, '.-', 'g', ['y', 'y1']), [(x, y, '.-', 'g', 'y'), (x1, y1, '.-', 'g', 'y1')])
+    test(parse(yy), [(x0, y, '-', 'a'), (x0, y1, '-', 'a')])
+    test(parse(x, yy), [(x, y, '-', 'a'), (x, y1, '-', 'a')]), 
+    test(parse(np.array(x), yy), [(x, y, '-', 'a'), (x, y1, '-', 'a')]), 
+    test(parse(xx, yy), [(x, y, '-', 'a'), (x1, y1, '-', 'a')])
+    test(parse(xx, yy, '.'), [(x, y, '.', 'a'), (x1, y1, '.', 'a')])
+    test(parse(xx, yy, '.-', 'g'), [(x, y, '.-', 'g'), (x1, y1, '.-', 'g')])
     print()
 
 def test_parse_pd():
@@ -379,9 +362,9 @@ def test_parse_dicts():
 
 # __________________________________________________________________________________
 
-def check_dt(quintuples):
+def check_dt(quartuples):
     res = None
-    for q in quintuples:
+    for q in quartuples:
         if len(q[0]) == 0:
             continue
         v = isinstance(q[0][0], (datetime, np.datetime64))
@@ -391,13 +374,12 @@ def check_dt(quintuples):
             raise ValueError(f'Either all x arrays should be of datetime type or none at all')
     return res
 
-
-def plot(*args, style=None, color=None, label=None,
-        p=None, hover=False, mode='plot', 
-        plot_width=900, plot_height=300,
-        hline=None, vline=None, hline_color='pink', vline_color='pink', 
-        xlabel=None, ylabel=None, legend_loc=None, 
-        notebook_handle=False, return_source=False, **kwargs):
+def plot(*args, style=None, color=None, label=None, line_width=None,
+         p=None, hover=False, mode='plot', 
+         width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
+         hline=None, vline=None, hline_color='pink', vline_color='pink', 
+         xlabel=None, ylabel=None, legend_loc=None, grid=True,
+         get_handle=False, get_source=False, show=True, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
     if len(args) == 0 and hline is None and vline is None:
@@ -405,11 +387,11 @@ def plot(*args, style=None, color=None, label=None,
     if len(args) > 5:
         raise ValueError('Too many positional arguments, can not be more than 5')
     #show = p is None
-    quintuples = parse(*args, color=color, style=style, label=label)
-    is_dt = check_dt(quintuples)
+    quartuples = parse(*args, color=color, style=style)
+    is_dt = check_dt(quartuples)
     if p is None:
         if not FIGURE:
-            kw = {'plot_width': plot_width, 'plot_height': plot_height}#'x_axis_type': None, 'y_axis_type': None}
+            kw = {'width': width, 'height': height}#'x_axis_type': None, 'y_axis_type': None}
             if mode == 'plot':
                 pass
             elif mode == 'semilogx':
@@ -424,15 +406,16 @@ def plot(*args, style=None, color=None, label=None,
                 else:
                     kw['x_axis_type'] = 'datetime'
             p = figure(**kw)
+            if grid is False:
+                p.xgrid.visible = False
+                p.ygrid.visible = False
             FIGURE.append(p)
-#                print('A', FIGURE)
         else:
             p = FIGURE[0]
             if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
                 raise ValueError('cannot plot datetime x values on a non-datetime x axis')
             elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
                 raise ValueError('cannot plot non-datetime x values on a datetime x axis')
-#                print('B')
 
     if hover:
         if is_dt:
@@ -440,12 +423,20 @@ def plot(*args, style=None, color=None, label=None,
                         formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
         else:
             p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
-    for x, y, style, color_str, label_i in quintuples:
+
+    n = len(quartuples)
+    if label is None:
+        label = [None] * n
+    elif isinstance(label, str) and n != 1 or \
+        isinstance(label, (list, tuple)) and len(label) != n:
+        raise ValueError(f'length of label = {len(label)} must match the number of plots = {n}')
+
+    line_widths = broadcast_num(line_width, n, None, 'line_width')
+
+    for (x, y, style, color_str), label_i, line_width_i in zip(quartuples, label, line_widths):
         color = get_color(color_str)
-        if isinstance(y, torch.Tensor):
-            y = y.detach().numpy()
-        if isinstance(y, dict):
-            x, y = list(y.keys()), list(y.values())
+#        if isinstance(y, torch.Tensor):
+#            y = y.detach().numpy()
         if len(x) != len(y):
             raise ValueError(f'len(x)={len(x)} is different from len(y)={len(y)}')
         if len(x) and isinstance(x[0], str):
@@ -458,6 +449,8 @@ def plot(*args, style=None, color=None, label=None,
                 kw['legend_label'] = label_i
             if hover:
                 kw['name'] = label_i
+            if line_width_i:
+                kw['line_width'] = line_width_i
             p.line('x', 'y', source=source, color=color, **kw)
             label_set = True
         if '.' in style:
@@ -473,7 +466,8 @@ def plot(*args, style=None, color=None, label=None,
         hline = [hline]
     if isinstance(hline, (list, tuple)):
         for y in hline:
-            span = Span(location=y, dimension='width', line_color=hline_color, line_width=1, level='overlay')
+            span = Span(location=y, dimension='width', line_color=hline_color, 
+                        line_width=1, level='overlay')
             p.renderers.append(span)
     elif hline is not None:
         raise TypeError(f'Unsupported type of hline: {type(hline)}')
@@ -482,7 +476,8 @@ def plot(*args, style=None, color=None, label=None,
         vline = [vline]
     if isinstance(vline, (list, tuple)):
         for x in vline:
-            span = Span(location=x, dimension='height', line_color=vline_color, line_width=1, level='overlay')
+            span = Span(location=x, dimension='height', line_color=vline_color, 
+                        line_width=1, level='overlay')
             p.renderers.append(span)
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
@@ -496,12 +491,15 @@ def plot(*args, style=None, color=None, label=None,
     if ylabel is not None:
         p.yaxis.axis_label = ylabel
     handle = None
-    if notebook_handle:
-        handle = bp.show(p, notebook_handle=notebook_handle)
+    if get_handle:
+        handle = bp.show(p, notebook_handle=get_handle)
         FIGURE.clear()
         return source, handle
-    elif return_source:
+    elif get_source:
         return source
+    elif show is False:
+        FIGURE.clear()
+        return p
     else:
         return None
 #    except ParseError as e:
@@ -565,47 +563,75 @@ def xylabels(xlabel, ylabel, p=None, **kw):
     p.xaxis.axis_label = xlabel
     p.yaxis.axis_label = ylabel
 
-def hist(x, nbins=30):
+def hist(x, nbins=30, height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, **kw):
     hist, edges = np.histogram(x, density=True, bins=nbins)
-    p = figure()
-    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
-            fill_color="navy", line_color="white", alpha=0.5)
+    p = figure(height=height, width=width)
+    defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
+    defaults.update(kw)
+    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:], **defaults)
     bp.show(p)
 
+def _ramp(cmap, padding):
+    return imshow(np.arange(256)[None, :].T.repeat(30, axis=1), cmap=cmap, show=False, 
+                  toolbar=False, grid=False, padding=padding)
+
 def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True, 
-           link=True, axes=False, toolbar=True, compact=True, merge_tools=True, toolbar_location='right'):
+           link=True, axes=False, toolbar=True, 
+           width=DEFAULT_IMAGE_WIDTH, height=DEFAULT_IMAGE_HEIGHT, 
+           merge_tools=True, toolbar_location='right', grid=True, show_cmap=False, 
+           hover=False, padding=None):
     if len(ims) > 1:
-        ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, compact=compact, show=False) 
+        ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, 
+                     width=width, hover=hover, padding=padding, show=False) 
                 for i,im in enumerate(ims)]
         for pi in ps[1:]:
             pi.x_range = ps[0].x_range
             pi.y_range = ps[0].y_range
-        return bp.show(bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location))
+        if show_cmap:
+            return bp.show(bl.row(
+                bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location),
+                _ramp(cmap=cmap, padding=padding),
+            ))
+        else:
+            return bp.show(bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location))
+
     if isinstance(ims[0], (list, tuple)):
         ims = ims[0]
         if not isinstance(ims[0], (list, tuple)):
             ims = [ims]
         ps = []
         for i, ims_row in enumerate(ims):
-            ps_row = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, compact=compact, show=False) 
+            ps_row = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, 
+                      width=width, hover=hover, padding=padding, show=False) 
                       for i,im in enumerate(ims_row)]
             if link:
-                if i == 0:
-                    p0 = ps_row[0]
-                    for pi in ps_row[1:]:
-                        pi.x_range = p0.x_range
-                        pi.y_range = p0.y_range
-                else:
-                    for pi in ps_row:
-                        pi.x_range = p0.x_range
-                        pi.y_range = p0.y_range
-            ps.append(bl.gridplot([ps_row], merge_tools=merge_tools, toolbar_location=toolbar_location))
+                p0 = ps_row[0]
+                for pi in ps_row[1:]:
+                    pi.x_range = p0.x_range
+                    pi.y_range = p0.y_range
+            if show_cmap:
+                ps.append(bl.row(
+                    bl.gridplot([ps_row], merge_tools=merge_tools, toolbar_location=toolbar_location),
+                    _ramp(cmap=cmap, padding=padding),
+                ))
+            else:
+                ps.append(bl.gridplot([ps_row], merge_tools=merge_tools, toolbar_location=toolbar_location))
         return bp.show(bl.column(ps))
 
     im = ims[0]
     if p is None:
-        width = 300 if compact else 400
-        p = figure(int(width/im.shape[0]*im.shape[1]), width)   # width = 400, keep aspect ratio
+        kw = {}
+        if hover is True:
+            kw['tooltips'] = [("x", "$x"), ("y", "$y"), ("value", "@image")]
+        p = figure(int(width/im.shape[0]*im.shape[1]), width, **kw)   # width = 400, keep aspect ratio
+    
+    if grid is False:
+        p.xgrid.visible = False
+        p.ygrid.visible = False
+    
+    if padding is not None:
+        p.x_range.range_padding = p.y_range.range_padding = padding
+    
     if axes is False:
         p.axis.visible=False
     if toolbar is False:
@@ -637,14 +663,17 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
     else:
         raise ValueError('Unsupported image shape: ' + str(im.shape))
     if show:
-        bp.show(p, notebook_handle=notebook_handle)
+        if show_cmap:
+            bp.show(bl.row(p, _ramp(cmap=cmap)))
+        else:
+            bp.show(p, notebook_handle=notebook_handle)
+
     else:
         return p
     if notebook_handle:
         return h
 
 def show_df(df):
-#    source = ColumnDataSource(df)
     source = ColumnDataSource({str(k): v for k, v in df.items()})
     columns = [
         TableColumn(field=str(q), title=str(q))
@@ -709,9 +738,27 @@ def load_ipython_extension(ip):
         push_notebook=push_notebook,
         bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df))
 
+
+def test_exceptions_1():
+    FIGURE.clear()
+    AUTOCOLOR.clear()
+    AUTOCOLOR.append(cycle(AUTOCOLOR_PALETTE))
+    import pytest
+    with pytest.raises(ValueError):
+        plot([[1,2,3],[4,5,6]], [[1,2,3],[4,5,6],[7,8,9]])
+
+def test_exceptions_2():
+    import pytest
+    with pytest.raises(ValueError, match='length of label = 1 must match the number of plots = 2'):
+        plot([[1,2,3],[4,5,6]], label='y')
+
+def test_exceptions():
+    import pytest
+    pytest.main(['-o', 'python_files=__init__.py', __file__, '-k', 'test_exceptions_'])
+
 if __name__ == '__main__':
-    #test_parse3()
-    test_parse_arrs()
+    test_parse_arrays()
     test_parse_np()
     test_parse_pd()
     test_parse_dicts()
+    test_exceptions()

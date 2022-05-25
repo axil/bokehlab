@@ -9,4 +9,4 @@
 0.1.22 bl shortcut, imshow(show=True) flag
 0.1.23 imshow: several images in a row
 0.2.2  renamed to bokehlab
-0.2.3  refactored parser and tests
+0.2.3  rewritten a large portion of the parser and tests
