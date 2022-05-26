@@ -260,7 +260,7 @@ def parse(*args, style=None, color=None, label=None):
                 raise ValueError('Length of x is 0 while len(y) is {len(y)}')
         elif isinstance(x[0], (int, float)):
             x = [x] * n
-        elif isinstance(x[0], (list, tuple, np.ndarray)):
+        elif isinstance(x[0], (list, tuple, np.ndarray, pd.Index)):
             if len(x) == 1:
                 x *= n
             elif len(x) != n:
@@ -268,39 +268,53 @@ def parse(*args, style=None, color=None, label=None):
 
     style = broadcast_str(style, n, '-', 'style')
     color = broadcast_str(color, n, 'a', 'color')
+    
+    if label is None:
+        label = [None] * n
+    elif isinstance(label, str) and n == 1:
+        label = [label]
+    elif isinstance(label, (list, tuple)) and len(label) == n:
+        pass
+    else:
+        raise ValueError(f'length of label = {len(label)} must match the number of plots = {n}')
 
-    return list(zip(x, y, style, color))
+    return list(zip(x, y, style, color, label))
 
 def test_parse_arr(x, x1, y, y1):
     x0 = [0, 1, 2]
-    test(parse(y), [(x0, y, '-', 'a')])
+    test(parse(y), [(x0, y, '-', 'a', None)])
     
-    test(parse(y), [(x0, y, '-', 'a')])
-    test(parse(y, '.-'), [(x0, y, '.-', 'a')])
-    test(parse(y, style='.-'), [(x0, y, '.-', 'a')])
-    test(parse(y, color='g'), [(x0, y, '-', 'g')])
-    test(parse(y, '.-', 'g'), [(x0, y, '.-', 'g')])
+    test(parse(y), [(x0, y, '-', 'a', None)])
+    test(parse(y, '.-'), [(x0, y, '.-', 'a', None)])
+    test(parse(y, style='.-'), [(x0, y, '.-', 'a', None)])
+    test(parse(y, color='g'), [(x0, y, '-', 'g', None)])
+    test(parse(y, '.-', 'g'), [(x0, y, '.-', 'g', None)])
+    test(parse(y, '.-', 'g', label='y'), [(x0, y, '.-', 'g', 'y')])
     
-    test(parse(x, y), [(x, y, '-', 'a')])
-    test(parse(x, y, '.-'), [(x, y, '.-', 'a')])
-    test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g')])
+    test(parse(x, y), [(x, y, '-', 'a', None)])
+    test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
+    test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g', None)])
+    test(parse(x, y, '.-', 'g', label='y'), [(x, y, '.-', 'g', 'y')])
     
-    test(parse(x, y, style='.-'), [(x, y, '.-', 'a')])
-    test(parse(x, y, color='g'), [(x, y, '-', 'g')])
-    test(parse(x, y, label='y'), [(x, y, '-', 'a', 'y')])
-    test(parse(x, y, style='.-', color='g'), [(x, y, '.-', 'g')])
+    test(parse(x, y, style='.-'), [(x, y, '.-', 'a', None)])
+    test(parse(x, y, color='g'), [(x, y, '-', 'g', None)])
+    test(parse(x, y, label='y'), [(x, y, '-', 'a', 'y', None)])
+    test(parse(x, y, style='.-', color='g'), [(x, y, '.-', 'g', None)])
+    test(parse(x, y, style='.-', color='g', label='y'), [(x, y, '.-', 'g', 'y')])
     
-    test(parse(x, [y, y1]), [(x, y, '-', 'a'), (x, y1, '-', 'a')])
-    test(parse(x, [y, y1], '.-'), [(x, y, '.-', 'a'), (x, y1, '.-', 'a')])
-    test(parse(x, [y, y1], ['.', '-']), [(x, y, '.', 'a'), (x, y1, '-', 'a')])
-    test(parse(x, [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r'), (x, y1, '.-', 'g')])
-    test(parse(x, [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r'), (x, y1, '-', 'g')])
+    test(parse(x, [y, y1]), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)])
+    test(parse(x, [y, y1], '.-'), [(x, y, '.-', 'a', None), (x, y1, '.-', 'a', None)])
+    test(parse(x, [y, y1], ['.', '-']), [(x, y, '.', 'a', None), (x, y1, '-', 'a', None)])
+    test(parse(x, [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
+    test(parse(x, [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x, y1, '-', 'g', None)])
+    test(parse(x, [y, y1], ['.', '-'], ['r', 'g'], label=['y1', 'y2']), [(x, y, '.', 'r', 'y1'), (x, y1, '-', 'g', 'y2')])
     
-    test(parse([x, x1], [y, y1]), [(x, y, '-', 'a'), (x1, y1, '-', 'a')])
-    test(parse([x, x1], [y, y1], '.-'), [(x, y, '.-', 'a'), (x1, y1, '.-', 'a')])
-    test(parse([x, x1], [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r'), (x1, y1, '.-', 'g')])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['b']), [(x, y, '.', 'b'), (x1, y1, '-', 'b')])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r'), (x1, y1, '-', 'g')])
+    test(parse([x, x1], [y, y1]), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
+    test(parse([x, x1], [y, y1], '.-'), [(x, y, '.-', 'a', None), (x1, y1, '.-', 'a', None)])
+    test(parse([x, x1], [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x1, y1, '.-', 'g', None)])
+    test(parse([x, x1], [y, y1], ['.', '-'], ['b']), [(x, y, '.', 'b', None), (x1, y1, '-', 'b', None)])
+    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x1, y1, '-', 'g', None)])
+    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g'], label=['y1', 'y2']), [(x, y, '.', 'r', 'y1'), (x1, y1, '-', 'g', 'y2')])
     print()
 
 def test_parse_arrays():
@@ -322,12 +336,12 @@ def test_parse_np():
     y1 = [-1, -4, -9]
     xx = np.array([[1, 2, 3], [-1, -2, -3]]).T
     yy = np.array([[1, 4, 9], [-1, -4, -9]]).T
-    test(parse(yy), [(x0, y, '-', 'a'), (x0, y1, '-', 'a')])
-    test(parse(x, yy), [(x, y, '-', 'a'), (x, y1, '-', 'a')]), 
-    test(parse(np.array(x), yy), [(x, y, '-', 'a'), (x, y1, '-', 'a')]), 
-    test(parse(xx, yy), [(x, y, '-', 'a'), (x1, y1, '-', 'a')])
-    test(parse(xx, yy, '.'), [(x, y, '.', 'a'), (x1, y1, '.', 'a')])
-    test(parse(xx, yy, '.-', 'g'), [(x, y, '.-', 'g'), (x1, y1, '.-', 'g')])
+    test(parse(yy), [(x0, y, '-', 'a', None), (x0, y1, '-', 'a', None)])
+    test(parse(x, yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
+    test(parse(np.array(x), yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
+    test(parse(xx, yy), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
+    test(parse(xx, yy, '.'), [(x, y, '.', 'a', None), (x1, y1, '.', 'a', None)])
+    test(parse(xx, yy, '.-', 'g'), [(x, y, '.-', 'g', None), (x1, y1, '.-', 'g', None)])
     print()
 
 def test_parse_pd():
@@ -355,9 +369,9 @@ def test_parse_dicts():
     y = np.array([1, 4, 9])
     y1 = np.array([-1, -4, -9])
     d = {'y': y, 'y1': y1}
-    test(parse(d), [(x0, y, '-', 'a', 'y'), (x0, y1, '-', 'a', 'y1')])
-    test(parse(x, d), [(x, y, '-', 'a', 'y'), (x, y1, '-', 'a', 'y1')])
-    test(parse([x, x1], d), [(x, y, '-', 'a', 'y'), (x1, y1, '-', 'a', 'y1')])
+    test(parse(d), [(x0, y, '-', 'a', 'y', None), (x0, y1, '-', 'a', 'y1', None)])
+    test(parse(x, d), [(x, y, '-', 'a', 'y', None), (x, y1, '-', 'a', 'y1', None)])
+    test(parse([x, x1], d), [(x, y, '-', 'a', 'y', None), (x1, y1, '-', 'a', 'y1', None)])
     print()
 
 # __________________________________________________________________________________
@@ -374,12 +388,14 @@ def check_dt(quartuples):
             raise ValueError(f'Either all x arrays should be of datetime type or none at all')
     return res
 
-def plot(*args, style=None, color=None, label=None, line_width=None,
+def plot(*args, style=None, color=None, label=None, line_width=None, alpha=None,
          p=None, hover=False, mode='plot', 
          width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
          xlabel=None, ylabel=None, legend_loc=None, grid=True,
-         get_handle=False, get_source=False, show=True, **kwargs):
+         background_fill_color=None, x_range=None, y_range=None,
+         #get_handle=False, get_source=False, 
+         get_sh=False, get_ps=False, show=True, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
     if len(args) == 0 and hline is None and vline is None:
@@ -387,8 +403,8 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
     if len(args) > 5:
         raise ValueError('Too many positional arguments, can not be more than 5')
     #show = p is None
-    quartuples = parse(*args, color=color, style=style)
-    is_dt = check_dt(quartuples)
+    quintuples = parse(*args, color=color, style=style, label=label)
+    is_dt = check_dt(quintuples)
     if p is None:
         if not FIGURE:
             kw = {'width': width, 'height': height}#'x_axis_type': None, 'y_axis_type': None}
@@ -405,6 +421,12 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
+            if background_fill_color is not None:
+                kw['background_fill_color'] = background_fill_color
+            if x_range is not None:
+                kw['x_range'] = x_range
+            if y_range is not None:
+                kw['y_range'] = y_range
             p = figure(**kw)
             if grid is False:
                 p.xgrid.visible = False
@@ -424,16 +446,14 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
         else:
             p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
 
-    n = len(quartuples)
-    if label is None:
-        label = [None] * n
-    elif isinstance(label, str) and n != 1 or \
-        isinstance(label, (list, tuple)) and len(label) != n:
-        raise ValueError(f'length of label = {len(label)} must match the number of plots = {n}')
+    n = len(quintuples)
 
     line_widths = broadcast_num(line_width, n, None, 'line_width')
+    alphas = broadcast_num(alpha, n, None, 'alpha')
 
-    for (x, y, style, color_str), label_i, line_width_i in zip(quartuples, label, line_widths):
+    display_legend = False
+    sources = []
+    for (x, y, style, color_str, label_i), line_width_i, alpha_i in zip(quintuples, line_widths, alphas):
         color = get_color(color_str)
 #        if isinstance(y, torch.Tensor):
 #            y = y.detach().numpy()
@@ -442,7 +462,9 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
         if len(x) and isinstance(x[0], str):
             raise ValueError('plotting strings in x axis is not supported')
         source = ColumnDataSource(data=dict(x=x, y=y))
-        label_set = False
+        label_already_set = False
+        if label_i:
+            display_legend = True
         if not style or '-' in style:
             kw = kwargs.copy()
             if legend_loc != 'hide' and label_i is not None:
@@ -451,16 +473,19 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
                 kw['name'] = label_i
             if line_width_i:
                 kw['line_width'] = line_width_i
+            if alpha_i:
+                kw['alpha'] = alpha_i
             p.line('x', 'y', source=source, color=color, **kw)
-            label_set = True
+            label_already_set = True
         if '.' in style:
             kw = kwargs.copy()
-            label_j = None if label_set else label_i
+            label_j = None if label_already_set else label_i
             if legend_loc != 'hide' and label_j is not None:
                 kw['legend_label'] = label_j
             if hover:
                 kw['name'] = label_i
             p.circle('x', 'y', source=source, color=color, **kw)
+        sources.append(source)
 
     if isinstance(hline, (int, float)):
         hline = [hline]
@@ -481,7 +506,7 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
             p.renderers.append(span)
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
-    if legend_loc != 'hide':
+    if legend_loc != 'hide' and display_legend:
         if label is not None:
             p.legend.click_policy="hide"
         if legend_loc is not None:
@@ -491,12 +516,17 @@ def plot(*args, style=None, color=None, label=None, line_width=None,
     if ylabel is not None:
         p.yaxis.axis_label = ylabel
     handle = None
-    if get_handle:
-        handle = bp.show(p, notebook_handle=get_handle)
+    if get_sh:
+        handle = bp.show(p, notebook_handle=True)
         FIGURE.clear()
-        return source, handle
-    elif get_source:
-        return source
+        return sources[0] if len(sources)==1 else sources, handle
+#    elif get_source:
+#        return source
+    elif get_ps:
+        FIGURE.clear()
+        return p, sources[0] if len(sources)==1 else sources
+#    elif get_source:
+#        return source
     elif show is False:
         FIGURE.clear()
         return p
@@ -683,7 +713,7 @@ def show_df(df):
 
     bp.show(data_table)
 
-class VarWatcher(object):
+class AutoShow(object):
 #    def __init__(self, ip):
 #        self.shell = ip
 #        self.last_x = None
@@ -714,7 +744,7 @@ class VarWatcher(object):
                 bp.show(FIGURE[0])
     post_run_cell.bokeh_plot_method = True
 
-def load_ipython_extension(ip):
+def register_callbacks(ip):
     # Avoid re-registering when reloading the extension
     def register(event, function):
         for f in ip.events.callbacks[event]:
@@ -723,11 +753,14 @@ def load_ipython_extension(ip):
 #                print('unregistered')
         ip.events.register(event, function)
 
-    vw = VarWatcher()
+    vw = AutoShow()
 #    ip.events.register('pre_execute', vw.pre_execute)
     register('pre_run_cell', vw.pre_run_cell)
 #    ip.events.register('post_execute', vw.post_execute)
     register('post_run_cell', vw.post_run_cell)
+
+def load_ipython_extension(ip):
+    register_callbacks(ip)
     ip.user_ns.update(dict(figure=figure,
         loglog_figure=loglog_figure,
         plot=plot,
@@ -746,11 +779,10 @@ def test_exceptions_1():
     import pytest
     with pytest.raises(ValueError):
         plot([[1,2,3],[4,5,6]], [[1,2,3],[4,5,6],[7,8,9]])
-
-def test_exceptions_2():
-    import pytest
     with pytest.raises(ValueError, match='length of label = 1 must match the number of plots = 2'):
         plot([[1,2,3],[4,5,6]], label='y')
+    with pytest.raises(ValueError, match=re.escape('len(alpha)=2 does not match len(y)=1')):
+        plot([1,2,3], [-1,-2,-3], alpha=[0.1, 0.7])
 
 def test_exceptions():
     import pytest
@@ -762,3 +794,8 @@ if __name__ == '__main__':
     test_parse_pd()
     test_parse_dicts()
     test_exceptions()
+
+elif __name__ == 'bokehlab':
+    import IPython
+    ip = IPython.core.interactiveshell.InteractiveShell.instance()
+    register_callbacks(ip)
