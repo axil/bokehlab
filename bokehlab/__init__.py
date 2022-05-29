@@ -605,13 +605,17 @@ def xylabels(xlabel, ylabel, p=None, **kw):
     p.xaxis.axis_label = xlabel
     p.yaxis.axis_label = ylabel
 
-def hist(x, nbins=30, height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, **kw):
+def hist(x, nbins=30, height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, get_ws=False, **kw):
     hist, edges = np.histogram(x, density=True, bins=nbins)
     p = figure(height=height, width=width)
     defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
     defaults.update(kw)
-    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:], **defaults)
-    bp.show(p)
+    source = ColumnDataSource(data=dict(top=hist, bottom=np.zeros_like(hist), left=edges[:-1], right=edges[1:]))
+    p.quad(source=source, **defaults)
+    if get_ws:
+        return BokehWidget(p), source
+    else:
+        bp.show(p)
 
 def _ramp(cmap, padding):
     return imshow(np.arange(256)[None, :].T.repeat(30, axis=1), cmap=cmap, show=False, 
@@ -762,7 +766,7 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
     if notebook_handle:
         return h
 
-def show_df(df):
+def show_df(df, get_ws=False):
     source = ColumnDataSource({str(k): v for k, v in df.items()})
     columns = [
         TableColumn(field=str(q), title=str(q))
@@ -770,7 +774,10 @@ def show_df(df):
     ] 
     data_table = DataTable(source=source, columns=columns, width=960)#, height=280)
 
-    bp.show(data_table)
+    if get_ws:
+        return BokehWidget(data_table), source
+    else:
+        bp.show(data_table)
 
 def hstack(*args, show=True):
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
