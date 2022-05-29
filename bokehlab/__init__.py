@@ -18,6 +18,7 @@ from bokeh.layouts import layout
 from bokeh.resources import INLINE
 import numpy as np
 import pandas as pd
+from jupyter_bokeh import BokehModel
 
 #if USE_TORCH:
 #    import torch
@@ -376,6 +377,15 @@ def test_parse_dicts():
 
 # __________________________________________________________________________________
 
+class BokehWidget(BokehModel):
+
+    def on_change(self, *args, **kwargs):
+        return self.model.on_change(*args, **kwargs)
+    
+    def on_event(self, *args, **kwargs):
+        return self.model.on_event(*args, **kwargs)
+
+
 def check_dt(quartuples):
     res = None
     for q in quartuples:
@@ -395,7 +405,7 @@ def plot(*args, style=None, color=None, label=None, line_width=None, alpha=None,
          xlabel=None, ylabel=None, legend_loc=None, grid=True,
          background_fill_color=None, x_range=None, y_range=None,
          #get_handle=False, get_source=False, 
-         get_sh=False, get_ps=False, show=True, **kwargs):
+         get_sh=False, get_ps=False, get_ws=False, show=True, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
     if len(args) == 0 and hline is None and vline is None:
@@ -525,8 +535,9 @@ def plot(*args, style=None, color=None, label=None, line_width=None, alpha=None,
     elif get_ps:
         FIGURE.clear()
         return p, sources[0] if len(sources)==1 else sources
-#    elif get_source:
-#        return source
+    elif get_ws:
+        FIGURE.clear()
+        return BokehWidget(p), sources[0] if len(sources)==1 else sources
     elif show is False:
         FIGURE.clear()
         return p
@@ -605,25 +616,29 @@ def _ramp(cmap, padding):
     return imshow(np.arange(256)[None, :].T.repeat(30, axis=1), cmap=cmap, show=False, 
                   toolbar=False, grid=False, padding=padding)
 
-def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, show=True, 
-           link=True, axes=False, toolbar=True, 
-           width=DEFAULT_IMAGE_WIDTH, height=DEFAULT_IMAGE_HEIGHT, 
-           merge_tools=True, toolbar_location='right', grid=True, show_cmap=False, 
-           hover=False, padding=None):
+def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True, 
+           width=None, height=None, 
+           grid=True, flipud=False, hover=False, padding=None, 
+           merge_tools=True, link=True, toolbar_location='right', show_cmap=False, # multiple image related
+           get_ws=False, notebook_handle=False, show=True):     # i/o 
     if len(ims) > 1:
-        ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, 
-                     width=width, hover=hover, padding=padding, show=False) 
+        ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, 
+                     toolbar=False if merge_tools else toolbar, 
+                     width=width, height=height, grid=grid, flipud=flipud, 
+                     hover=hover, padding=padding, show=False) 
                 for i,im in enumerate(ims)]
-        for pi in ps[1:]:
-            pi.x_range = ps[0].x_range
-            pi.y_range = ps[0].y_range
+        if link:
+            for pi in ps[1:]:
+                pi.x_range = ps[0].x_range
+                pi.y_range = ps[0].y_range
+        grid = bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location)
         if show_cmap:
-            return bp.show(bl.row(
-                bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location),
-                _ramp(cmap=cmap, padding=padding),
-            ))
+            grid = bl.row(grid, _ramp(cmap=cmap, padding=padding))
+        if show:
+            bp.show(grid)
+            return
         else:
-            return bp.show(bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location))
+            return grid
 
     if isinstance(ims[0], (list, tuple)):
         ims = ims[0]
@@ -632,7 +647,7 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
         ps = []
         for i, ims_row in enumerate(ims):
             ps_row = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, toolbar=toolbar, 
-                      width=width, hover=hover, padding=padding, show=False) 
+                      width=width, flipud=flipud, hover=hover, padding=padding, show=False) 
                       for i,im in enumerate(ims_row)]
             if link:
                 p0 = ps_row[0]
@@ -653,7 +668,26 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
         kw = {}
         if hover is True:
             kw['tooltips'] = [("x", "$x"), ("y", "$y"), ("value", "@image")]
-        p = figure(int(width/im.shape[0]*im.shape[1]), width, **kw)   # width = 400, keep aspect ratio
+        if width is None and height is None:    # by default, fix height, calculate widths
+            height = DEFAULT_IMAGE_HEIGHT
+        if width is None:        # calculate width from height, keeping aspect ratio
+            if toolbar:
+                width = int(height/im.shape[0]*im.shape[1])+30
+            else:
+                width = int(height/im.shape[0]*im.shape[1])
+        if height is None:       # calculate height from width, keeping aspect ratio
+            if toolbar:
+                height = int((width-30)/im.shape[1]*im.shape[0])
+            else:
+                height = int(width/im.shape[1]*im.shape[0])
+#        if not flipud:                 this does not work
+#            p.y_range.flipped=True
+        y_pad = im.shape[1]*0.05
+        if not flipud:
+            kw['y_range'] = [im.shape[0]+y_pad, -y_pad]
+        else:
+            kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
+        p = figure(width, height, **kw)   
     
     if grid is False:
         p.xgrid.visible = False
@@ -670,7 +704,13 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
     if np.issubdtype(im.dtype, np.floating):
         if stretch:
             _min, _max = im.min(), im.max()
-            im = (im-_min)/(_max-_min)
+            if _min == _max:
+                if _min > 1.:
+                    im = np.ones_like(im, dtype=np.uint8)
+                elif _min < 0.:
+                    im = np.zeros_like(im, dtype=np.uint8)
+            else:
+                im = (im-_min)/(_max-_min)
         im = (im*255).astype(np.uint8)
     elif im.dtype == np.uint8:
         pass
@@ -681,23 +721,37 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, notebook_handle=False, sh
                 im = np.zeros_like(im, dtype=np.uint8)
             else:
                 im = ((im-_min)/(_max-_min)*255).astype(np.uint8)
-    if len(im.shape) == 2:
-        colormap = cm.get_cmap(cmap)
-        palette = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        h = p.image([im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]], palette=palette)
-    elif len(im.shape) == 3:
-        if im.shape[-1] == 3: # rgb
-            im = np.dstack([im, np.full_like(im[:,:,0], 255)])
-        im1 = im.view(dtype=np.uint32).reshape(im.shape[:2])
-        h = p.image_rgba(image=[np.flipud(im1)], x=[0], y=[0], dw=[im1.shape[1]], dh=[im1.shape[0]])
+    im = im.squeeze()
+    if not flipud:
+        im = np.flipud(im)
+    if im.ndim in (2, 3):
+        if im.ndim == 2:
+            colormap = cm.get_cmap(cmap)
+            palette = [matplotlib.colors.rgb2hex(m) 
+                       for m in colormap(np.arange(colormap.N))]
+        else:
+            if im.shape[-1] == 3: # 3 is rgb; 4 means rgba already
+                im = np.dstack([im, np.full_like(im[:,:,0], 255)])
+            im = im.view(dtype=np.uint32).reshape(im.shape[:2])
+        kw = dict(image=[im], x=[0], dw=[im.shape[1]])
+        if not flipud:
+            kw.update(dict(y=[im.shape[0]], dh=[im.shape[0]]))
+        else:
+            kw.update(dict(y=[0], dh=[im.shape[0]]))
+        source = ColumnDataSource(data=kw)
+        if im.ndim == 2:
+            h = p.image(source=source, palette=palette)
+        else:
+            h = p.image_rgba(source=source)
     else:
         raise ValueError('Unsupported image shape: ' + str(im.shape))
+    if get_ws:
+        return BokehWidget(p), source
     if show:
         if show_cmap:
             bp.show(bl.row(p, _ramp(cmap=cmap)))
         else:
             bp.show(p, notebook_handle=notebook_handle)
-
     else:
         return p
     if notebook_handle:
@@ -712,6 +766,10 @@ def show_df(df):
     data_table = DataTable(source=source, columns=columns, width=960)#, height=280)
 
     bp.show(data_table)
+
+#def vstack(*args):
+#    for arg in args:
+#
 
 class AutoShow(object):
 #    def __init__(self, ip):
