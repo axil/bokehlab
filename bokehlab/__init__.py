@@ -19,6 +19,7 @@ from bokeh.resources import INLINE
 import numpy as np
 import pandas as pd
 from jupyter_bokeh import BokehModel
+import ipywidgets as ipw
 
 #if USE_TORCH:
 #    import torch
@@ -618,7 +619,7 @@ def _ramp(cmap, padding):
 
 def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True, 
            width=None, height=None, 
-           grid=True, flipud=False, hover=False, padding=None, 
+           grid=True, flipud=False, hover=False, padding=0.1, 
            merge_tools=True, link=True, toolbar_location='right', show_cmap=False, # multiple image related
            get_ws=False, notebook_handle=False, show=True):     # i/o 
     if len(ims) > 1:
@@ -680,21 +681,25 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
                 height = int((width-30)/im.shape[1]*im.shape[0])
             else:
                 height = int(width/im.shape[1]*im.shape[0])
-#        if not flipud:                 this does not work
-#            p.y_range.flipped=True
-        y_pad = im.shape[1]*0.05
+#        if not flipud:                 this does not work due to an issue in bokeh
+#            p.y_range.flipped=True     workaround below 
+        y_pad = im.shape[1]*padding/2 if padding is not None else 0
         if not flipud:
             kw['y_range'] = [im.shape[0]+y_pad, -y_pad]
         else:
             kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
+        x_pad = im.shape[0]*padding/2 if padding is not None else 0  # just for symmetry with y
+        kw['x_range'] = [-x_pad, im.shape[1]+x_pad]
         p = figure(width, height, **kw)   
+
+#    if padding is not None:            can be uncommented once the issue is resolved
+#        # p.x_range.range_padding = p.y_range.range_padding = padding
+#        p.x_range.range_padding = padding
     
     if grid is False:
         p.xgrid.visible = False
         p.ygrid.visible = False
     
-    if padding is not None:
-        p.x_range.range_padding = p.y_range.range_padding = padding
     
     if axes is False:
         p.axis.visible=False
@@ -767,9 +772,29 @@ def show_df(df):
 
     bp.show(data_table)
 
-#def vstack(*args):
-#    for arg in args:
-#
+def hstack(*args, show=True):
+    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    if all_bokeh:
+        p = bl.row(*args)
+        if show:
+            bp.show(p)
+        else:
+            return p
+    else:
+        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
+        return ipw.HBox(converted)
+
+def vstack(*args, show=True):
+    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    if all_bokeh:
+        p = bl.column(*args)
+        if show:
+            bp.show(p)
+        else:
+            return p
+    else:
+        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
+        return ipw.VBox(converted)
 
 class AutoShow(object):
 #    def __init__(self, ip):
@@ -826,8 +851,9 @@ def load_ipython_extension(ip):
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
         xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
-        push_notebook=push_notebook,
-        bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df))
+        push_notebook=push_notebook, BokehWidget=BokehWidget,
+        bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df,
+        hstack=hstack, vstack=vstack))
 
 
 def test_exceptions_1():
