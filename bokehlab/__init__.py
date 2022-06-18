@@ -1,3 +1,4 @@
+import os
 import sys
 import re
 import math
@@ -5,7 +6,9 @@ from collections.abc import Iterable
 from collections import deque
 from itertools import cycle
 from datetime import datetime
+from pathlib import Path
 
+import yaml
 from IPython.core.magic import register_line_magic
 
 #USE_TORCH = 0
@@ -37,19 +40,42 @@ import matplotlib.cm as cm
 
 __version__ = '0.2.3'
 
-output_notebook(resources=INLINE)
-#output_notebook()
-
 CONFIG = {
     'width': 900,
     'height': 300,
-    'image_width': 300,
+    'image_width': None,
     'image_height': 300,
+    'resources': 'cdn',
 }
-DEFAULT_WIDTH = 900
-DEFAULT_HEIGHT = 300
-DEFAULT_IMAGE_WIDTH = 300
-DEFAULT_IMAGE_HEIGHT = 300
+CONFIG_DIR = Path('~/.bokeh').expanduser()
+CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
+CONFIG_LOADED = False
+DEBUG_CONFIG = True
+
+def load_config():
+    global CONFIG_LOADED
+    if not CONFIG_LOADED:
+        if CONFIG_FILE.exists():
+            on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
+            CONFIG.update(on_disk)
+            CONFIG_LOADED = True
+            if DEBUG_CONFIG:
+                print('config loaded')
+    elif DEBUG_CONFIG:
+        print('config already loaded')
+
+def load(resources=None):
+    load_config()
+    if resources is None:
+        resources = CONFIG['resources']
+    if resources == 'inline':
+        print('inline mode')
+        output_notebook(resources=INLINE)
+    elif resources == 'cdn':
+        print('cdn mode')
+        output_notebook()
+    else:
+        print(f'unknown bokeh resources mode: {resources}')
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
@@ -117,11 +143,19 @@ class BLFigure(Figure):
         else:
             return COLORS.get(c, c)
         
-def figure(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, active_scroll='wheel_zoom', **kwargs):
+def figure(width=None, height=None, active_scroll='wheel_zoom', **kwargs):
+    if width is None:
+        width = CONFIG['width']
+    if height is None:
+        height = CONFIG['height']
     return BLFigure(plot_width=width, plot_height=height,
                     active_scroll=active_scroll, **kwargs)
 
-def loglog_figure(width=900, height=300, active_scroll='wheel_zoom', **kwargs):
+def loglog_figure(width=None, height=None, active_scroll='wheel_zoom', **kwargs):
+    if width is None:
+        width = CONFIG['width']
+    if height is None:
+        height = CONFIG['height']
     return bp.figure(plot_width=width, plot_height=height,
             active_scroll=active_scroll,
             x_axis_type='log', y_axis_type='log', **kwargs)
@@ -483,7 +517,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
          p=None, hover=False, mode='plot', 
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
-         width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
+         width=None, height=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
          x_label=None, y_label=None, title=None, title_loc=None, legend_loc=None, grid=True,
          background_fill_color=None, x_range=None, y_range=None,
@@ -493,6 +527,10 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
+    if width is None:
+        width = CONFIG['width']
+    if height is None:
+        height = CONFIG['height']
     if len(args) == 0 and hline is None and vline is None:
         raise ValueError('Either positional arguments, or hline/vline are required')
     if len(args) > 5:
@@ -753,7 +791,11 @@ def loglog(*args, **kwargs):
 #    p.xaxis.axis_label = xlabel
 #    p.yaxis.axis_label = ylabel
 
-def hist(x, nbins=30, height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, get_ws=False, **kw):
+def hist(x, nbins=30, height=None, width=None, get_ws=False, **kw):
+    if width is None:
+        width = CONFIG['width']
+    if height is None:
+        height = CONFIG['height']
     hist, edges = np.histogram(x, density=True, bins=nbins)
     p = figure(height=height, width=width)
     defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
@@ -771,7 +813,8 @@ def _ramp(cmap, padding):
 
 def calc_size(width, height, im_width, im_height, toolbar):
     if width is None and height is None:    # by default, fix height, calculate widths
-        height = DEFAULT_IMAGE_HEIGHT
+        height = CONFIG['image_height']
+        width = CONFIG['image_width']
     if width is None:        # calculate width from height, keeping aspect ratio
         if toolbar:
             width = int(height/im_height*im_width)+30
@@ -1042,6 +1085,7 @@ def vstack(*args, merge_tools=False, tools_loc='right', force_wrap=False, **kwar
 #    register('post_run_cell', vw.post_run_cell)
 
 def load_ipython_extension(ip):
+    load()
 #    register_callbacks(ip)
     ip.user_ns.update(dict(figure=figure,
         loglog_figure=loglog_figure,
