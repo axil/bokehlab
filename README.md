@@ -7,35 +7,39 @@ Built upon the [Bokeh](https://bokeh.org/) visualization library. Works with bot
 
     pip install bokehlab
 
-## Basic plotting:
-
 To load this extension in jupyter notebook (both classic jupyter and jupyter lab):
 
     %load_ext bokehlab
 
-Or even shorter (copy bokelab_magic.py to ~\.ipython\profile_default\startup):
+Or even shorter:
 
     %bokehlab
 
-Basic plotting:
+To make the short syntax working, either run 
+
+    python -m bokehlab.install_magic
+
+Or manually copy `bokelab_magic.py` from the distribution directory to `~\.ipython\profile_default\startup`.
+
+## Basic plotting:
 
     plot([1,4,9])             # dots 
     plot([1,4,9], '.-')       # line and dots 
     plot([1,2,3], [1,4,9])    # x and y 
     plot([1,2,3], [1,4,9], '.-')    # x, y and line style
 
-Several plots in one figure: 
+## Several plots in one figure: 
 
 <img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/simple.png" width="800">
 
-Interactive controls:
+## Interactive controls:
 
     click and drag = pan
     mouse wheel = zoom, 
     wheel on x axis = zoom horizontally
     wheel on y axis = zoom vertically
 
-Multiple plots syntax (equivalent ways to draw it):
+## Multiple plots syntax (equivalent ways to draw it):
 
     x = [1,5,10]
     y1 = [1,4,9]
@@ -70,7 +74,7 @@ The following colors are supported so far:
     
 NB The color specifier must go after the marker if both are present.
 
-Legend:
+## Legend:
 
     - plot([1,2,3], [1,4,9], label='plot1')
       plot([1,2,3], [2,5,10], label='plot2')
@@ -87,13 +91,13 @@ Legend location:
 Other legend locations:
 https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#location
 
-Axes labels:
+## Axes labels:
   
     - plot([1,2,3], xlabel='time', ylabel='value')
     - xlabel('time'); ylabel('value')
     - xylabels('time', 'value')
 
-Other uses:
+## Other uses:
 
 * `semilogx()`, `semilogy()` and `loglog()` show (semi)logarithmic plots with the same syntax as `plot()`.
 
