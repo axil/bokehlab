@@ -2,7 +2,7 @@ import os
 from IPython.core.magic import register_line_magic
 from pathlib import Path
 
-#@register_line_magic
+@register_line_magic
 def bokehlab(line):
     """
     Magic equivalent to %load_ext bokehlab. Injects keywords like 'plot'
@@ -10,13 +10,13 @@ def bokehlab(line):
     """
     from bokehlab import CONFIG, load_config
     load_config()
-    if line in ('cdn', 'inline'):
+    if line in ('cdn', 'inline', 'local'):
         CONFIG['resources'] = line
     elif line:
         print('unknown option')
     get_ipython().run_line_magic('load_ext', 'bokehlab')
 
-#@register_line_magic
+@register_line_magic
 def bokehlab_config(line):
     '''
     Configure bokehlab. Syntax: 
@@ -42,10 +42,13 @@ def bokehlab_config(line):
                 k, v = part.split('=', 1)
                 print(k, '=', v)
                 if k in CONFIG.keys():
-                    try:
-                        CONFIG[k] = config[k] = int(v)
-                    except:
-                        print(f'{v} must be an integer')
+                    if k == 'resources':
+                        CONFIG[k] = config[k] = v
+                    else:
+                        try:
+                            CONFIG[k] = config[k] = int(v)
+                        except:
+                            print(f'{v} must be an integer')
                 else:
                     print(f'Unknown key: {k} = {v}')
         if _global:
@@ -59,6 +62,3 @@ def bokehlab_config(line):
             on_disk.update(config)
             CONFIG_FILE.open('w').write(yaml.dump(on_disk))
             print('config saved')
-
-if __name__ == '__main__':
-    bokehlab_config('-g width=100')

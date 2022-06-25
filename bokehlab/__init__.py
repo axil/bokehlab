@@ -21,7 +21,7 @@ from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataT
     DatetimeAxis, Row, Column
 from bokeh.io import output_notebook, push_notebook
 from bokeh.layouts import layout
-from bokeh.resources import INLINE
+from bokeh.resources import INLINE, CDN, Resources
 
 import numpy as np
 import pandas as pd
@@ -51,6 +51,7 @@ CONFIG_DIR = Path('~/.bokeh').expanduser()
 CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
 CONFIG_LOADED = False
 DEBUG_CONFIG = True
+RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
 
 def load_config():
     global CONFIG_LOADED
@@ -70,12 +71,18 @@ def load(resources=None):
         resources = CONFIG['resources']
     if resources == 'inline':
         print('inline mode')
-        output_notebook(resources=INLINE)
+        output_notebook(INLINE)
     elif resources == 'cdn':
         print('cdn mode')
-        output_notebook()
+        output_notebook(CDN)
+    elif resources == 'local':
+        print('local mode')
+        output_notebook(Resources('server', root_url='/nbextensions/bokeh_resources'))
+    elif resources == 'local-dev':
+        print('local-dev mode')
+        output_notebook(Resources('server-dev', root_url='/nbextensions/bokeh_resources'))
     else:
-        print(f'unknown bokeh resources mode: {resources}')
+        print(f'Unknown Bokeh resources mode: "{resources}", available modes: {RESOURCE_MODES}')
 
 BLUE = "#1f77b4"
 GREEN = "#2ca02c"
@@ -532,7 +539,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
     if height is None:
         height = CONFIG['height']
     if len(args) == 0 and hline is None and vline is None:
-        raise ValueError('Either positional arguments, or hline/vline are required')
+        args = [1], [1]
     if len(args) > 5:
         raise ValueError('Too many positional arguments, can not be more than 5')
     #show = p is None
@@ -727,7 +734,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
 #        FIGURE.clear()
 #        return p
     elif get_source:
-        return source
+        return sources[0] if len(sources)==1 else sources
     else:
         return p
 #    except ParseError as e:
@@ -1016,7 +1023,7 @@ def hstack(*args, merge_tools=False, tools_loc='right', force_wrap=False):
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.HBox(converted)
 
-def vstack(*args, merge_tools=False, tools_loc='right', force_wrap=False, **kwargs):
+def vstack(*args, merge_tools=False, tools_loc='right', wrap=True, **kwargs):
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
         if merge_tools:
@@ -1028,7 +1035,7 @@ def vstack(*args, merge_tools=False, tools_loc='right', force_wrap=False, **kwar
                 args[0].toolbar.active_drag = kwargs['active_drag']
         else:
             p = bl.column(*args)
-        if force_wrap:
+        if wrap:
             return BokehWidget(p)
         else:
             return p

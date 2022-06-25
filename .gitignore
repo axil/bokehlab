@@ -1,4 +1,5 @@
 *.sw?
+*.sv?
 build/
 dist/
 bokeh_plot.egg-info/
