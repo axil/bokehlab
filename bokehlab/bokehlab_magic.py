@@ -8,12 +8,12 @@ def bokehlab(line):
     Magic equivalent to %load_ext bokehlab. Injects keywords like 'plot'
     into global namespace.
     """
-    from bokehlab import CONFIG, load_config
+    from bokehlab import CONFIG, load_config, RESOURCE_MODES
     load_config()
-    if line in ('cdn', 'inline', 'local'):
+    if line in RESOURCE_MODES:
         CONFIG['resources'] = line
     elif line:
-        print('unknown option')
+        print(f'Unknown Bokeh resources mode: "{line}". Available modes: {RESOURCE_MODES}')
     get_ipython().run_line_magic('load_ext', 'bokehlab')
 
 @register_line_magic
