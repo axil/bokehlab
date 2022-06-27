@@ -1,15 +1,13 @@
-import os
-import sys
-import re
 import math
-from collections.abc import Iterable
-from collections import deque
 from itertools import cycle
 from datetime import datetime
 from pathlib import Path
 
 import yaml
-from IPython.core.magic import register_line_magic
+import numpy as np
+import pandas as pd
+from jupyter_bokeh import BokehModel
+import ipywidgets as ipw
 
 #USE_TORCH = 0
 
@@ -20,13 +18,8 @@ import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
     DatetimeAxis, Row, Column
 from bokeh.io import output_notebook, push_notebook
-from bokeh.layouts import layout
 from bokeh.resources import INLINE, CDN, Resources
 
-import numpy as np
-import pandas as pd
-from jupyter_bokeh import BokehModel
-import ipywidgets as ipw
 
 #if USE_TORCH:
 #    import torch
@@ -41,16 +34,22 @@ import matplotlib.cm as cm
 __version__ = '0.2.3'
 
 CONFIG = {
-    'width': 900,
-    'height': 300,
-    'image_width': None,
-    'image_height': 300,
+    'figure': {
+        'width_policy': 'max',
+        'height': 300,
+        'active_scroll': 'wheel_zoom',
+    },
+    'imshow': {
+        'aspect_ratio': 1,
+    },
     'resources': 'cdn',
 }
+FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
 CONFIG_DIR = Path('~/.bokeh').expanduser()
 CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
 CONFIG_LOADED = False
-DEBUG_CONFIG = True
+DEBUG_CONFIG = False
+DEBUG_RESOURCES = False
 RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
 
 def load_config():
@@ -58,7 +57,12 @@ def load_config():
     if not CONFIG_LOADED:
         if CONFIG_FILE.exists():
             on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
-            CONFIG.update(on_disk)
+            for k, v in on_disk.items():
+                if isinstance(v, dict) and k in CONFIG:
+                    for kk, vv in v.items():
+                        CONFIG[k][kk] = vv
+                else:
+                    CONFIG[k] = v
             CONFIG_LOADED = True
             if DEBUG_CONFIG:
                 print('config loaded')
@@ -69,18 +73,19 @@ def load(resources=None):
     load_config()
     if resources is None:
         resources = CONFIG['resources']
+    res = None
     if resources == 'inline':
-        print('inline mode')
-        output_notebook(INLINE)
+        res = INLINE
     elif resources == 'cdn':
-        print('cdn mode')
-        output_notebook(CDN)
+        res = CDN
     elif resources == 'local':
-        print('local mode')
-        output_notebook(Resources('server', root_url='/nbextensions/bokeh_resources'))
+        res = Resources('server', root_url='/nbextensions/bokeh_resources')
     elif resources == 'local-dev':
-        print('local-dev mode')
-        output_notebook(Resources('server-dev', root_url='/nbextensions/bokeh_resources'))
+        res = Resources('server-dev', root_url='/nbextensions/bokeh_resources')
+    if res:
+        if DEBUG_RESOURCES:
+            print(f'{resources} mode')
+        output_notebook(res)
     else:
         print(f'Unknown Bokeh resources mode: "{resources}", available modes: {RESOURCE_MODES}')
 
@@ -149,23 +154,37 @@ class BLFigure(Figure):
             return next(self._autocolor)
         else:
             return COLORS.get(c, c)
-        
-def figure(width=None, height=None, active_scroll='wheel_zoom', **kwargs):
-    if width is None:
-        width = CONFIG['width']
-    if height is None:
-        height = CONFIG['height']
-    return BLFigure(plot_width=width, plot_height=height,
-                    active_scroll=active_scroll, **kwargs)
 
-def loglog_figure(width=None, height=None, active_scroll='wheel_zoom', **kwargs):
-    if width is None:
-        width = CONFIG['width']
-    if height is None:
-        height = CONFIG['height']
-    return bp.figure(plot_width=width, plot_height=height,
-            active_scroll=active_scroll,
-            x_axis_type='log', y_axis_type='log', **kwargs)
+    def show(self, notebook_handle=False):
+        return bp.show(self, notebook_handle=notebook_handle)
+
+def figure(width=None, height=None, **kwargs):
+    if width is not None:
+        kwargs['width'] = width
+        kwargs['width_policy'] = 'auto'
+    if height is not None:
+        kwargs['height'] = height
+        kwargs['width_policy'] = 'auto'
+    for k, v in CONFIG['figure'].items():
+        if k not in kwargs:
+            kwargs[k] = v
+    return BLFigure(**kwargs)
+
+#def loglog_figure(width=None, height=None, 
+#                  width_policy=None, height_policy=None, 
+#                  active_scroll='wheel_zoom', **kwargs):
+#    if width is None:
+#        width = CONFIG['width']
+#    if height is None:
+#        height = CONFIG['height']
+#    if width_policy is None:
+#        width_policy = CONFIG['width_policy']
+#    if height_policy is None:
+#        height_policy = CONFIG['height_policy']
+#    return bp.figure(plot_width=width, plot_height=height,
+#                     width_policy=width_policy, height_policy=height_policy,
+#                     active_scroll=active_scroll,
+#                     x_axis_type='log', y_axis_type='log', **kwargs)
 
 # ________________________________ parser __________________________________________
 
@@ -174,28 +193,6 @@ class ParseError(Exception):
 
 class Missing:
     pass
-
-def compare(a, b):
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
-        for q, r in zip(a, b):
-            if not compare(q, r):
-                return False
-    elif isinstance(a, (np.ndarray, pd.Index, pd.Series)) or \
-         isinstance(b, (np.ndarray, pd.Index, pd.Series)):
-        a, b = np.array(a), np.array(b)
-        if a.shape != b.shape or not np.allclose(a, b):   
-            return False
-    elif a != b:
-        return False
-    return True
-
-def test(a, b):
-    if compare(a, b):
-        sys.stdout.write('.')
-        sys.stdout.flush()
-    else:
-        import pdb; pdb.set_trace()
-        print(f'{repr(a)} != {repr(b)}')
 
 def is_string(arg):
     return isinstance(arg, str) or \
@@ -361,108 +358,6 @@ def parse(*args, style=None, color=None, label=None, default_style='-'):
 
     return list(zip(x, y, style, color, label))
 
-def test_parse_arr(x, x1, y, y1):
-    x0 = [0, 1, 2]
-    test(parse(y), [(x0, y, '-', 'a', None)])
-    
-    test(parse(y), [(x0, y, '-', 'a', None)])
-    test(parse(y, '.-'), [(x0, y, '.-', 'a', None)])
-    test(parse(y, style='.-'), [(x0, y, '.-', 'a', None)])
-    test(parse(y, color='g'), [(x0, y, '-', 'g', None)])
-    test(parse(y, '.-', 'g'), [(x0, y, '.-', 'g', None)])
-    test(parse(y, '.-', 'g', label='y'), [(x0, y, '.-', 'g', 'y')])
-    
-    test(parse(x, y), [(x, y, '-', 'a', None)])
-    test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
-    test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g', None)])
-    test(parse(x, y, '.-', 'g', label='y'), [(x, y, '.-', 'g', 'y')])
-    
-    test(parse(x, y, style='.-'), [(x, y, '.-', 'a', None)])
-    test(parse(x, y, color='g'), [(x, y, '-', 'g', None)])
-    test(parse(x, y, label='y'), [(x, y, '-', 'a', 'y', None)])
-    test(parse(x, y, style='.-', color='g'), [(x, y, '.-', 'g', None)])
-    test(parse(x, y, style='.-', color='g', label='y'), [(x, y, '.-', 'g', 'y')])
-    
-    test(parse(x, [y, y1]), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)])
-    test(parse(x, [y, y1], '.-'), [(x, y, '.-', 'a', None), (x, y1, '.-', 'a', None)])
-    test(parse(x, [y, y1], ['.', '-']), [(x, y, '.', 'a', None), (x, y1, '-', 'a', None)])
-    test(parse(x, [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x, y1, '.-', 'g', None)])
-    test(parse(x, [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x, y1, '-', 'g', None)])
-    test(parse(x, [y, y1], ['.', '-'], ['r', 'g'], label=['y1', 'y2']), [(x, y, '.', 'r', 'y1'), (x, y1, '-', 'g', 'y2')])
-    
-    test(parse([x, x1], [y, y1]), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
-    test(parse([x, x1], [y, y1], '.-'), [(x, y, '.-', 'a', None), (x1, y1, '.-', 'a', None)])
-    test(parse([x, x1], [y, y1], '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x1, y1, '.-', 'g', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['b']), [(x, y, '.', 'b', None), (x1, y1, '-', 'b', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x1, y1, '-', 'g', None)])
-    test(parse([x, x1], [y, y1], ['.', '-'], ['r', 'g'], label=['y1', 'y2']), [(x, y, '.', 'r', 'y1'), (x1, y1, '-', 'g', 'y2')])
-    
-    test(parse([x, x1], y), [(x, y, '-', 'a', None), (x1, y, '-', 'a', None)])
-    test(parse([x, x1], y, '.-'), [(x, y, '.-', 'a', None), (x1, y, '.-', 'a', None)])
-    test(parse([x, x1], y, '.-', ['r', 'g']), [(x, y, '.-', 'r', None), (x1, y, '.-', 'g', None)])
-    test(parse([x, x1], y, ['.', '-'], ['b']), [(x, y, '.', 'b', None), (x1, y, '-', 'b', None)])
-    test(parse([x, x1], y, ['.', '-'], ['r', 'g']), [(x, y, '.', 'r', None), (x1, y, '-', 'g', None)])
-    test(parse([x, x1], y, ['.', '-'], ['r', 'g'], label=['y1', 'y2']), [(x, y, '.', 'r', 'y1'), (x1, y, '-', 'g', 'y2')])
-    print()
-
-def test_parse_arrays():
-    x = [1, 2, 3]
-    x1 = [-1, -2, -3]
-    y = [1, 4, 9]
-    y1 = [-1, -4, -9]
-    test_parse_arr(x, x1, y, y1)
-    test_parse_arr(x, x1, np.array(y), y1)
-    test_parse_arr(np.array(x), x1, y, y1)
-    test_parse_arr(np.array(x), x1, np.array(y), y1)
-    test_parse_arr(np.array(x), np.array(x1), np.array(y), np.array(y1))
-
-def test_parse_np():
-    x0 = [0, 1, 2]
-    x = [1, 2, 3]
-    x1 = [-1, -2, -3]
-    y = [1, 4, 9]
-    y1 = [-1, -4, -9]
-    xx = np.array([[1, 2, 3], [-1, -2, -3]]).T
-    yy = np.array([[1, 4, 9], [-1, -4, -9]]).T
-    test(parse(yy), [(x0, y, '-', 'a', None), (x0, y1, '-', 'a', None)])
-    test(parse(x, yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
-    test(parse(np.array(x), yy), [(x, y, '-', 'a', None), (x, y1, '-', 'a', None)]), 
-    test(parse(xx, y), [(x, y, '-', 'a', None), (x1, y, '-', 'a', None)]), 
-    test(parse(xx, yy), [(x, y, '-', 'a', None), (x1, y1, '-', 'a', None)])
-    test(parse(xx, yy, '.'), [(x, y, '.', 'a', None), (x1, y1, '.', 'a', None)])
-    test(parse(xx, yy, '.-', 'g'), [(x, y, '.-', 'g', None), (x1, y1, '.-', 'g', None)])
-    print()
-
-def test_parse_pd():
-    x0 = np.array([0, 1, 2])
-    x = np.array([1, 2, 3])
-    x1 = np.array([-1, -2, -3])
-    x2 = np.array([-10, -20, -30])
-    y = np.array([1, 4, 9])
-    y1 = np.array([-1, -4, -9])
-    df = pd.DataFrame({'y': y, 'y1': y1})
-    df1 = pd.DataFrame({'y': y, 'y1': y1}, index=x)
-    test(parse(df), [(x0, y, '-', 'a', 'y'), (x0, y1, '-', 'a', 'y1')])
-    test(parse(df1), [(x, y, '-', 'a', 'y'), (x, y1, '-', 'a', 'y1')])
-    test(parse(x1, df), [(x1, y, '-', 'a', 'y'), (x1, y1, '-', 'a', 'y1')])
-    test(parse(x1, df1), [(x1, y, '-', 'a', 'y'), (x1, y1, '-', 'a', 'y1')])
-    test(parse([x1, x2], df), [(x1, y, '-', 'a', 'y'), (x2, y1, '-', 'a', 'y1')])
-    test(parse([x1, x2], df1), [(x1, y, '-', 'a', 'y'), (x2, y1, '-', 'a', 'y1')])
-    test(parse(df, label=['Y', 'Y1']), [(x0, y, '-', 'a', 'Y'), (x0, y1, '-', 'a', 'Y1')])
-    print()
-
-def test_parse_dicts():
-    x0 = np.array([0, 1, 2])
-    x = np.array([1, 2, 3])
-    x1 = np.array([-1, -2, -3])
-    y = np.array([1, 4, 9])
-    y1 = np.array([-1, -4, -9])
-    d = {'y': y, 'y1': y1}
-    test(parse(d), [(x0, y, '-', 'a', 'y', None), (x0, y1, '-', 'a', 'y1', None)])
-    test(parse(x, d), [(x, y, '-', 'a', 'y', None), (x, y1, '-', 'a', 'y1', None)])
-    test(parse([x, x1], d), [(x, y, '-', 'a', 'y', None), (x1, y1, '-', 'a', 'y1', None)])
-    print()
-
 # __________________________________________________________________________________
 
 
@@ -524,9 +419,9 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
          p=None, hover=False, mode='plot', 
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
-         width=None, height=None,
+         width=None, height=None, width_policy=None, height_policy=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
-         x_label=None, y_label=None, title=None, title_loc=None, legend_loc=None, grid=True,
+         x_label=None, y_label=None, title=None, title_location=None, legend_location=None, grid=True,
          background_fill_color=None, x_range=None, y_range=None,
          #get_handle=False, 
          get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, 
@@ -534,10 +429,6 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
-    if width is None:
-        width = CONFIG['width']
-    if height is None:
-        height = CONFIG['height']
     if len(args) == 0 and hline is None and vline is None:
         args = [1], [1]
     if len(args) > 5:
@@ -548,7 +439,18 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
     is_dt = check_dt(quintuples)
     if p is None:
  #       if not FIGURE:
-            kw = {'width': width, 'height': height}#'x_axis_type': None, 'y_axis_type': None}
+            kw = {}
+            loc = locals()
+            for k in ('width', 'height', 'width_policy', 'height_policy', 
+                      'background_fill_color', 'x_range', 'y_range',
+                      'x_axis_location', 'y_axis_location', 
+                      'title', 'title_location'):
+                v = loc[k]
+                if v is not None:
+                    kw[k] = v
+            for k, v in CONFIG['figure'].items():
+                if k not in kwargs:
+                    kw[k] = v
             if mode == 'plot':
                 pass
             elif mode == 'semilogx':
@@ -562,21 +464,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
-            if background_fill_color is not None:
-                kw['background_fill_color'] = background_fill_color
-            if x_range is not None:
-                kw['x_range'] = x_range
-            if y_range is not None:
-                kw['y_range'] = y_range
-            if x_axis_location is not None:
-                kw['x_axis_location'] = x_axis_location
-            if y_axis_location is not None:
-                kw['y_axis_location'] = y_axis_location
-            if title_loc is not None:
-                kw['title_location'] = title_loc
-            if title is not None:
-                kw['title'] = title
-            p = BLFigure(**kw)
+            p = figure(**kw)
             if grid is False:
                 p.xgrid.visible = False
                 p.ygrid.visible = False
@@ -636,7 +524,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
             raise ValueError(f'Unsupported plot style: {style}')
         if line_style:
             kw = kwargs.copy()
-            if legend_loc != 'hide' and label_i is not None:
+            if legend_location != 'hide' and label_i is not None:
                 kw['legend_label'] = label_i
             if hover:
                 kw['name'] = label_i
@@ -658,7 +546,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
         if marker_style:
             kw = kwargs.copy()
             label_j = None if label_already_set else label_i
-            if legend_loc != 'hide' and label_j is not None:
+            if legend_location != 'hide' and label_j is not None:
                 kw['legend_label'] = label_j
             if hover:
                 kw['name'] = label_i
@@ -710,11 +598,11 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
             p.renderers.append(span)
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
-    if legend_loc != 'hide' and display_legend:
+    if legend_location != 'hide' and display_legend:
         if label is not None:
             p.legend.click_policy="hide"
-        if legend_loc is not None:
-            p.legend.location = legend_loc
+        if legend_location is not None:
+            p.legend.location = legend_location
     if x_label is not None:
         p.xaxis.axis_label = x_label
     if y_label is not None:
@@ -819,15 +707,15 @@ def _ramp(cmap, padding):
                   toolbar=False, grid=False, padding=padding)
 
 def calc_size(width, height, im_width, im_height, toolbar):
-    if width is None and height is None:    # by default, fix height, calculate widths
-        height = CONFIG['image_height']
-        width = CONFIG['image_width']
-    if width is None:        # calculate width from height, keeping aspect ratio
+    if width == 'auto' and height == 'auto':    # by default, fix height, calculate widths
+        height = CONFIG['imshow']['height']
+        width = CONFIG['imshow']['width']
+    if width == 'auto':        # calculate width from height, keeping aspect ratio
         if toolbar:
             width = int(height/im_height*im_width)+30
         else:
             width = int(height/im_height*im_width)
-    if height is None:       # calculate height from width, keeping aspect ratio
+    if height == 'auto':       # calculate height from width, keeping aspect ratio
         if toolbar:
             height = int((width-30)/im_width*im_height)
         else:
@@ -838,9 +726,9 @@ def calc_size(width, height, im_width, im_height, toolbar):
 def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True, 
            width=None, height=None, 
            grid=True, flipud=False, hover=False, padding=0.1, 
-           merge_tools=True, link=True, tools_loc='right', show_cmap=False, # multiple image related
-           title=None, title_loc=None,
-           get_ws=False, notebook_handle=False):     # i/o 
+           merge_tools=True, link=True, tools_location='right', show_cmap=False, # multiple image related
+           title=None, title_location=None,
+           get_ws=False, notebook_handle=False, **kw):
     if len(ims) > 1:
         if link:
             max_height = max(im.shape[0] for im in ims)
@@ -854,13 +742,13 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
         ps = [imshow(im, cmap=cmap, stretch=stretch, axes=axes, 
                      toolbar=False if merge_tools else toolbar, 
                      width=width, height=height, grid=grid, flipud=flipud, 
-                     hover=hover, padding=padding, title=title[i], title_loc=title_loc) 
-                for i,im in enumerate(ims)]
+                     hover=hover, padding=padding, title=title[i], title_location=title_location) 
+                for i, im in enumerate(ims)]
         if link:
             for pi in ps[1:]:
                 pi.x_range = ps[0].x_range
                 pi.y_range = ps[0].y_range
-        grid = bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=tools_loc)
+        grid = bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=tools_location)
         if show_cmap:
             grid = bl.row(grid, _ramp(cmap=cmap, padding=padding))
         return grid
@@ -895,9 +783,8 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
             kw['tooltips'] = [("x", "$x"), ("y", "$y"), ("value", "@image")]
         if title is not None:
             kw['title'] = title
-        if title_loc is not None:
-            kw['title_location'] = title_loc
-        width, height = calc_size(width, height, im.shape[1], im.shape[0], toolbar)
+        if title_location is not None:
+            kw['title_location'] = title_location
 #        if not flipud:                 this does not work due to an issue in bokeh
 #            p.y_range.flipped=True     workaround below 
         y_pad = im.shape[1]*padding/2 if padding is not None else 0
@@ -907,8 +794,20 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
             kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
         x_pad = im.shape[0]*padding/2 if padding is not None else 0  # just for symmetry with y
         kw['x_range'] = [-x_pad, im.shape[1]+x_pad]
-        p = figure(width, height, **kw)
-        if title_loc is not None:
+
+        if width is not None:
+            kw['width'] = width
+        if height is not None:
+            kw['height'] = height
+        for k, v in CONFIG['figure'].items():
+            if k not in kw:
+                kw[k] = v
+        for k, v in CONFIG['imshow'].items():
+            if k not in kw:
+                kw[k] = v
+#        kw['width'], kw['height'] = calc_size(kw['width'], kw['height'], im.shape[1], im.shape[0], toolbar)
+        p = BLFigure(**kw)
+        if title_location is not None:
             p.title.align = 'center'
 
 #    if padding is not None:            can be uncommented once the issue is resolved
@@ -918,7 +817,6 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
     if grid is False:
         p.xgrid.visible = False
         p.ygrid.visible = False
-    
     
     if axes is False:
         p.axis.visible=False
@@ -975,15 +873,13 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
 
     if get_ws:
         return BokehWidget(p), source
-    if show:
-        if show_cmap:
-            bp.show(bl.row(p, _ramp(cmap=cmap)))
-        else:
-            bp.show(p, notebook_handle=notebook_handle)
-    else:
-        return p
-    if notebook_handle:
-        return h
+    if show_cmap:
+        p = bl.row(p, _ramp(cmap=cmap))
+#    else:
+#        bp.show(p, notebook_handle=notebook_handle)
+    return p
+#    if notebook_handle:
+#        return h
 
 def show_df(df, get_ws=False):
     source = ColumnDataSource({str(k): v for k, v in df.items()})
@@ -1006,42 +902,57 @@ def show_df(df, get_ws=False):
 #    def _ipython_display_(self):
 #        bp.show(self)
 
-def hstack(*args, merge_tools=False, tools_loc='right', force_wrap=False):
+def hstack(*args, merge_tools=False, tools_location='right', wrap=True, active_drag=None):
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
+#        for k in ('width_policy', 'height_policy'):
+#            v = CONFIG['figure'].get(k)
+#            if v not in ('auto', 'fixed', None):
+#                kwargs[k] = v
         if merge_tools:
-            p = bl.gridplot([args], merge_tools=True, toolbar_location=tools_loc)
+            p = bl.gridplot([args], merge_tools=True, 
+                            toolbar_location=tools_location)
+            if active_drag is not None:
+                args[0].toolbar.active_drag = active_drag
         else:
             p = bl.row(*args)
-        if force_wrap:
-            return BokehWidget(p)
-        else:
-            return p
-    else:
-        if merge_tools:
-            raise ValueError('Can only merge tools if all arguments are bokeh objects (not widgets)')
-        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
-        return ipw.HBox(converted)
-
-def vstack(*args, merge_tools=False, tools_loc='right', wrap=True, **kwargs):
-    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
-    if all_bokeh:
-        if merge_tools:
-            p = bl.gridplot([[a] for a in args], merge_tools=True, toolbar_location=tools_loc)
-#            for kw in 'active_drag', 'active_scroll', 'active_tap', 'active_inspect':
-#                if kw in kwargs:
-#                    setattr(args[0].toolbar, kw, kwargs[kw])
-            if 'active_drag' in kwargs:
-                args[0].toolbar.active_drag = kwargs['active_drag']
-        else:
-            p = bl.column(*args)
         if wrap:
             return BokehWidget(p)
         else:
             return p
     else:
         if merge_tools:
-            raise ValueError('Can only merge tools if all arguments are bokeh objects (not widgets)')
+            raise ValueError('Can only merge tools if all arguments are Bokeh objects (not widgets)')
+        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
+        return ipw.HBox(converted)
+
+def vstack(*args, merge_tools=False, tools_location='right', wrap=True, active_drag=None, **kwargs):
+    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    if all_bokeh:
+        for k in ('width_policy', 'height_policy'):
+            v = CONFIG['figure'].get(k)
+            if v not in ('auto', 'fixed', None):
+                kwargs[k] = v
+        if merge_tools:
+#            kw = {}
+#            for k in 'width', 'height', 'width_policy', 'height_policy':
+#                kw[k] = kwargs[k]
+            p = bl.gridplot([[a] for a in args], merge_tools=True, 
+                            toolbar_location=tools_location, **kwargs)
+#            for kw in 'active_drag', 'active_scroll', 'active_tap', 'active_inspect':
+#                if kw in kwargs:
+#                    setattr(args[0].toolbar, kw, kwargs[kw])
+            if active_drag is not None:
+                args[0].toolbar.active_drag = active_drag
+        else:
+            p = bl.column(*args, **kwargs)
+        if wrap:
+            return BokehWidget(p)
+        else:
+            return p
+    else:
+        if merge_tools:
+            raise ValueError('Can only merge tools if all arguments are Bokeh objects (not widgets)')
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.VBox(converted)
 
@@ -1095,7 +1006,7 @@ def load_ipython_extension(ip):
     load()
 #    register_callbacks(ip)
     ip.user_ns.update(dict(figure=figure,
-        loglog_figure=loglog_figure,
+#        loglog_figure=loglog_figure,
         plot=plot, stem=stem,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
 #        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
@@ -1133,38 +1044,26 @@ def _xylabel(self, x_label, y_label):
     self.yaxis.axis_label = y_label
     return self
 
-Figure._ipython_display_ = lambda self:  bp.show(self)
+# Monkey-patching
+
 #Figure._plot = Figure.plot
 Figure.plot = property(_plot_wrapper)
 Figure.stem = _stem_wrapper
 Figure.xlabel = _xlabel
 Figure.ylabel = _ylabel
 Figure.xylabel = _xylabel
-Row._ipython_display_ = lambda self:  bp.show(self)
-Column._ipython_display_ = lambda self:  bp.show(self)
 
-def test_exceptions_1():
-#    FIGURE.clear()
-    AUTOCOLOR.clear()
-    AUTOCOLOR.append(cycle(AUTOCOLOR_PALETTE))
-    import pytest
-    with pytest.raises(ValueError):
-        plot([[1,2,3],[4,5,6]], [[1,2,3],[4,5,6],[7,8,9]])
-    with pytest.raises(ValueError, match='length of label = 1 must match the number of plots = 2'):
-        plot([[1,2,3],[4,5,6]], label='y')
-    with pytest.raises(ValueError, match=re.escape('len(alpha)=2 does not match len(y)=1')):
-        plot([1,2,3], [-1,-2,-3], alpha=[0.1, 0.7])
+Figure._ipython_display_ = lambda self: bp.show(self)
+Row._ipython_display_ = lambda self: bp.show(self)
+Column._ipython_display_ = lambda self: bp.show(self)
 
-def test_exceptions():
-    import pytest
-    pytest.main(['-o', 'python_files=__init__.py', __file__, '-k', 'test_exceptions_'])
+def _show(self, notebook_handle=False):
+    bp.show(self, notebook_handle=notebook_handle)
 
-if __name__ == '__main__':
-    test_parse_arrays()
-    test_parse_np()
-    test_parse_pd()
-    test_parse_dicts()
-    test_exceptions()
+Figure.show = _show
+Row.show = _show
+Column.show = _show
+
 
 #elif __name__ == 'bokehlab':
 #    import IPython
