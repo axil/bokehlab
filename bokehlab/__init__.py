@@ -268,7 +268,6 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
     color = choose(color, _color, 'color')
     label = choose(label, _label, 'label')
     
-    import ipdb; ipdb.set_trace()
     if isinstance(y, np.ndarray):
         if y.ndim == 1:
             y = [y]
@@ -533,7 +532,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 else:
                     kw['x_axis_type'] = 'datetime'
             if legend_location is not None:
-                kw['legend_location'] = legend_location
+                p._legend_location = legend_location
+            if p._legend_location is not None:
+                kw['legend_location'] = p._legend_location
             p = figure(**kw)
             if grid is False:
                 p.xgrid.visible = False
@@ -545,6 +546,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 #            FIGURE.append(p)
     else:
 #            p = FIGURE[0]
+        if legend_location is not None:
+            p._legend_location = legend_location
         if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot datetime x values on a non-datetime x axis')
         elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
@@ -672,8 +675,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     if p._legend_location != 'hide' and display_legend:
         if label is not None:
             p.legend.click_policy="hide"
-        if legend_location is not None:
-            p.legend.location = legend_location
+        if p._legend_location is not None:
+            p.legend.location = p._legend_location
     if x_label is not None:
         p.xaxis.axis_label = x_label
     if y_label is not None:
