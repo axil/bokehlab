@@ -676,7 +676,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         if label is not None:
             p.legend.click_policy="hide"
         if p._legend_location is not None:
-            p.legend.location = p._legend_location
+            p.legend.location = p._legend_location  
+            # because p.legend is not ready until the first glyph is drawn
     if x_label is not None:
         p.xaxis.axis_label = x_label
     if y_label is not None:
