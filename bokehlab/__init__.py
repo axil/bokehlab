@@ -35,7 +35,7 @@ __version__ = '0.2.3'
 
 CONFIG = {
     'figure': {
-        'width_policy': 'max',
+        'width': 'max',
         'height': 300,
         'active_scroll': 'wheel_zoom',
     },
@@ -147,6 +147,8 @@ class BLFigure(Figure):
 
     def __init__(self, *args, **kwargs):
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
+        self._hover = kwargs.pop('hover', False)
+        self._legend_location = kwargs.pop('legend_location', None)
         super().__init__(*args, **kwargs)
     
     def _get_color(self, c):
@@ -161,13 +163,21 @@ class BLFigure(Figure):
 def figure(width=None, height=None, **kwargs):
     if width is not None:
         kwargs['width'] = width
-        kwargs['width_policy'] = 'auto'
     if height is not None:
         kwargs['height'] = height
-        kwargs['width_policy'] = 'auto'
     for k, v in CONFIG['figure'].items():
         if k not in kwargs:
             kwargs[k] = v
+    if kwargs.get('width') == 'max':
+        del kwargs['width']
+        kwargs['width_policy'] = 'max'
+    if kwargs.get('height') == 'max':
+        del kwargs['height']
+        kwargs['height_policy'] = 'max'
+    if 'x_label' in kwargs:
+        kwargs['x_axis_label'] = kwargs.pop('x_label')
+    if 'y_label' in kwargs:
+        kwargs['y_axis_label'] = kwargs.pop('y_label')
     return BLFigure(**kwargs)
 
 #def loglog_figure(width=None, height=None, 
@@ -191,8 +201,8 @@ def figure(width=None, height=None, **kwargs):
 class ParseError(Exception):
     pass
 
-class Missing:
-    pass
+#class Missing:
+#    pass
 
 def is_string(arg):
     return isinstance(arg, str) or \
@@ -229,36 +239,36 @@ def broadcast_num(v, n, default, name):
             raise ValueError(f'len({name})={len(v)} does not match len(y)={n}')
     return v
            
-def parse(*args, style=None, color=None, label=None, default_style='-'):
-    _style = _color = _label = None
+def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None, default_style='-'):
+    _x = _y = _style = _color = _label = None
     
-    x = Missing()
-    if len(args) == 0:
-        return []
-    elif len(args) == 1:
-        y = args[0]
+    if len(args) == 1:
+        _y = args[0]
     elif len(args) == 2:
         if is_string(args[1]):
-            y, _style = args
+            _y, _style = args
         else:
-            x, y = args
+            _x, _y = args
     elif len(args) == 3:
         if is_string(args[1]):
-            y, _style, _color = args
+            _y, _style, _color = args
         else:
-            x, y, _style = args
+            _x, _y, _style = args
     elif len(args) == 4:
         if is_string(args[1]):
-            y, _style, _color, _label = args
+            _y, _style, _color, _label = args
         else:
-            x, y, _style, _color = args
+            _x, _y, _style, _color = args
     elif len(args) == 5:
-        x, y, _style, _color, _label = args
+        _x, _y, _style, _color, _label = args
     
+    x = choose(x, _x, 'x')
+    y = choose(y, _y, 'y')
     style = choose(style, _style, 'style')
     color = choose(color, _color, 'color')
     label = choose(label, _label, 'label')
     
+    import ipdb; ipdb.set_trace()
     if isinstance(y, np.ndarray):
         if y.ndim == 1:
             y = [y]
@@ -281,6 +291,20 @@ def parse(*args, style=None, color=None, label=None, default_style='-'):
                         raise TypeError(f'Unsupported y[0][0] type: {type(y[0][0])}')
             elif isinstance(y[0], np.ndarray):       # list of numpy arrays
                 pass
+            elif isinstance(y[0], str):              # list of pandas column names
+                if _y is not None:
+                    raise TypeError('y of type str is only allowed as a keyword argument')
+                if source is None:
+                    raise TypeError('For y of type str a source must be provided')
+                try:
+                    for name in y:
+                        if name not in source:
+                            raise TypeError(f'{name} is missing from the source')
+                    y = [source[name].values for name in y]
+                    if x is None:
+                        x = [source.index.values] * len(y)
+                except:
+                    raise 
             else:
                 raise TypeError(f'Unsupported y[0] type: {type(y[0])}')
 
@@ -290,22 +314,35 @@ def parse(*args, style=None, color=None, label=None, default_style='-'):
         y = list(y.values())
     
     elif isinstance(y, pd.Series):
-        if isinstance(x, Missing):
+        if x is None:
             x = [y.index]
         y = [y.values]
     
     elif isinstance(y, pd.DataFrame):
-        if isinstance(x, Missing):
+        if x is None:
             x = [y.index]
         if label is None:
             label = list(map(str, y.columns))
         y = [y[col].values for col in y.columns]
 
+    elif isinstance(y, str):
+        if _y is not None:
+            raise TypeError('y of type str is only allowed as a keyword argument')
+        if source is None:
+            raise TypeError('For y of type str a source must be provided')
+        if y in source:
+            y = [source[y].values]
+        else:
+            raise TypeError(f'{y} is missing from the source')
+    
+    else:
+        raise TypeError(f'Unsupported y type: {type(y)}')
+
     # By this point, y is a list of n arrays, each corresponding to a separate plot
 
     n = len(y)    # number of plots
     
-    if isinstance(x, Missing):
+    if x is None:
         x = [np.arange(len(yi)) for yi in y]
 
     elif isinstance(x, np.ndarray):
@@ -343,7 +380,38 @@ def parse(*args, style=None, color=None, label=None, default_style='-'):
                     y = [y] * n
             elif len(x) != n:
                 raise ValueError(f'Number of x arrays = {len(x)} must either match number of y arrays = {n} or be equal to one')
+        elif isinstance(x[0], str):
+            if _x is not None:
+                raise TypeError('x of type str is only allowed as a keyword argument')
+            if source is None:
+                raise TypeError('For x of type str a source must be provided')
+            try:
+                for name in x:
+                    if name not in source:
+                        raise TypeError(f'{name} is missing from the source')
+                x = [source[name].values for name in x]
+            except:
+                raise 
+        else:
+            raise TypeError(f'Unsupported x[0] type: {type(x[0])}')
 
+    elif isinstance(x, pd.Series):
+        x = [x.values]
+
+    elif isinstance(x, str):
+        if _x is not None:
+            raise TypeError('x of type str is only allowed as a keyword argument')
+        if source is None:
+            raise TypeError('For x of type str a source must be provided')
+        if x in source:
+            x = [source[x].values]
+        else:
+            raise TypeError(f'{x} is missing from the source')
+
+    else:
+        raise TypeError(f'Unsupported x type: {type(x)}')
+
+    
     style = broadcast_str(style, n, default_style, 'style')
     color = broadcast_str(color, n, 'a', 'color')
     
@@ -415,8 +483,8 @@ ANGLES = {'<': math.pi/2, 'v': math.pi, '>': -math.pi/2}
 
 LINE_STYLES = ['-', '--', ':', '-.']
 
-def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None,
-         p=None, hover=False, mode='plot', 
+def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=None, alpha=None,
+         p=None, hover=False, mode='plot', source=None,
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
          width=None, height=None, width_policy=None, height_policy=None,
@@ -429,12 +497,12 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
-    if len(args) == 0 and hline is None and vline is None:
+    if len(args) == 0 and (x, y, hline, vline) == (None, None, None, None):
         args = [1], [1]
     if len(args) > 5:
         raise ValueError('Too many positional arguments, can not be more than 5')
     #show = p is None
-    quintuples = parse(*args, color=color, style=style, label=label, 
+    quintuples = parse(*args, x=x, y=y, style=style, color=color, label=label, source=source,
                        default_style='o-' if stem else '-')
     is_dt = check_dt(quintuples)
     if p is None:
@@ -464,6 +532,8 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
+            if legend_location is not None:
+                kw['legend_location'] = legend_location
             p = figure(**kw)
             if grid is False:
                 p.xgrid.visible = False
@@ -480,7 +550,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
         elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot non-datetime x values on a datetime x axis')
 
-    if hover:
+    if p._hover:
         if is_dt:
             p.add_tools(HoverTool(tooltips=[('x', '@x{%F}'), ('y', '@y'), ('name', '$name')],
                         formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
@@ -541,7 +611,7 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
             if stem:
                 p.segment('x', 'y0', 'x', 'y', source=source, color=color, **kw)
             else:
-                p.line('x', 'y', source=source, color=color, **kw)
+                p.line(x='x', y='y', source=source, color=color, **kw)
             label_already_set = True
         if marker_style:
             kw = kwargs.copy()
@@ -568,15 +638,15 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
             if color:
                 kw['color'] = color
             if marker_style == '.':
-                p.circle('x', 'y', source=source, **kw)
+                p.circle(x='x', y='y', source=source, **kw)
             elif marker_style == 'o':
-                p.circle('x', 'y', source=source, **kw)
+                p.circle(x='x', y='y', source=source, **kw)
             elif marker_style == '*':
-                p.asterisk('x', 'y', source=source, **kw)
+                p.asterisk(x='x', y='y', source=source, **kw)
             elif marker_style in '^v<>':
                 if marker_style in ANGLES:
                     kw['angle'] = ANGLES[marker_style]
-                p.triangle('x', 'y', source=source, **kw)
+                p.triangle(x='x', y='y', source=source, **kw)
         sources.append(source)
 
     if isinstance(hline, (int, float, np.number)):
@@ -598,7 +668,8 @@ def _plot(*args, style=None, color=None, label=None, line_width=None, alpha=None
             p.renderers.append(span)
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
-    if legend_location != 'hide' and display_legend:
+
+    if p._legend_location != 'hide' and display_legend:
         if label is not None:
             p.legend.click_policy="hide"
         if legend_location is not None:
