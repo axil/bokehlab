@@ -12,7 +12,7 @@ import ipywidgets as ipw
 #USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.plotting.figure import Figure
+from bokeh.plotting.figure import Figure as BokehFigure
 import bokeh.layouts as bl
 import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
@@ -70,6 +70,9 @@ def load_config():
         print('config already loaded')
 
 def load(resources=None):
+    """
+    Loads BokehJS 
+    """
     load_config()
     if resources is None:
         resources = CONFIG['resources']
@@ -103,7 +106,7 @@ COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
 #        return next(AUTOCOLOR[0])
 #    else:
 #        return COLORS.get(c, c)
-#FIGURE = []
+FIGURES = []
 #AUTOCOLOR = []
 #AUTOCOLOR_PALETTE = [
 #        "#1f77b4",    # b
@@ -138,18 +141,46 @@ C10 = C20[:10]                  # AB, consecutive
 
 AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 
-bm.Model.model_class_reverse_map.pop('BLFigure', None)       # to allow reload_ext
+bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow reload_ext
 
-class BLFigure(Figure):
-    __subtype__ = "BLFigure"
+class BokehlabFigure(BokehFigure):
+    __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
     __view_module__ = "bokeh.models.plots"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, width=None, height=None, *args, **kwargs):
+        if width is not None:
+            kwargs['width'] = width
+        if height is not None:
+            kwargs['height'] = height
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
         self._hover = kwargs.pop('hover', False)
         self._legend_loc = kwargs.pop('legend_loc', None)
+        for k, v in CONFIG['figure'].items():
+            if k not in kwargs:
+                kwargs[k] = v
+        if kwargs.get('width') == 'max':
+            del kwargs['width']
+            kwargs['width_policy'] = 'max'
+        if kwargs.get('height') == 'max':
+            del kwargs['height']
+            kwargs['height_policy'] = 'max'
+        if 'x_label' in kwargs:
+            kwargs['x_axis_label'] = kwargs.pop('x_label')
+        if 'y_label' in kwargs:
+            kwargs['y_axis_label'] = kwargs.pop('y_label')
+        if 'width' in kwargs:
+            kwargs['plot_width'] = kwargs.pop('width')
+        if 'height' in kwargs:
+            kwargs['plot_height'] = kwargs.pop('height')
         super().__init__(*args, **kwargs)
+
+    def __enter__(self):
+        FIGURES.append(self)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        FIGURES.pop()
     
     def _get_color(self, c):
         if c == 'a':
@@ -161,24 +192,11 @@ class BLFigure(Figure):
         return bp.show(self, notebook_handle=notebook_handle)
 
 def figure(width=None, height=None, **kwargs):
-    if width is not None:
-        kwargs['width'] = width
-    if height is not None:
-        kwargs['height'] = height
-    for k, v in CONFIG['figure'].items():
-        if k not in kwargs:
-            kwargs[k] = v
-    if kwargs.get('width') == 'max':
-        del kwargs['width']
-        kwargs['width_policy'] = 'max'
-    if kwargs.get('height') == 'max':
-        del kwargs['height']
-        kwargs['height_policy'] = 'max'
-    if 'x_label' in kwargs:
-        kwargs['x_axis_label'] = kwargs.pop('x_label')
-    if 'y_label' in kwargs:
-        kwargs['y_axis_label'] = kwargs.pop('y_label')
-    return BLFigure(**kwargs)
+    FIGURES.append(BokehlabFigure(width=width, height=height, **kwargs))
+
+def Plot(*args, **kwargs):
+    kwargs['get_p'] = True
+    return plot(*args, **kwargs)
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -476,6 +494,10 @@ def stem(*args, **kwargs):
     kwargs['stem'] = True
     return _plot(*args, **kwargs)
 
+def Stem(*args, **kwargs):
+    kwargs['get_p'] = True
+    return stem(*args, **kwargs)
+
 MARKER_STYLES = ['.', 'o', '*', 'x', '^', 'v', '<', '>']
 
 ANGLES = {'<': math.pi/2, 'v': math.pi, '>': -math.pi/2}
@@ -491,7 +513,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          x_label=None, y_label=None, title=None, title_location=None, legend_loc=None, grid=True,
          background_fill_color=None, x_range=None, y_range=None,
          #get_handle=False, 
-         get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, 
+         get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
          x_axis_location=None, y_axis_location=None, 
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
 #    print('(plot) FIGURE =', FIGURE)
@@ -504,8 +526,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     quintuples = parse(*args, x=x, y=y, style=style, color=color, label=label, source=source,
                        default_style='o-' if stem else '-')
     is_dt = check_dt(quintuples)
+    figure_created = False
     if p is None:
- #       if not FIGURE:
+        if not FIGURES:
             kw = {}
             loc = locals()
             for k in ('width', 'height', 'width_policy', 'height_policy', 
@@ -531,11 +554,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
-            p = figure(**kw)
             if legend_loc is not None:
-                p._legend_loc = legend_loc
-            if p._legend_loc is not None:
-                kw['legend_loc'] = p._legend_loc
+                kw['legend_loc'] = legend_loc
+            p = BokehlabFigure(**kw)
             if grid is False:
                 p.xgrid.visible = False
                 p.ygrid.visible = False
@@ -543,11 +564,12 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 p.x_range.flipped = True
             if flip_y_range:
                 p.y_range.flipped = True
-#            FIGURE.append(p)
-    else:
-#            p = FIGURE[0]
-        if legend_loc is not None:
-            p._legend_loc = legend_loc
+            if not get_p:
+                FIGURES.append(p)
+            figure_created = True
+        else:
+            p = FIGURES[-1]
+    if not figure_created:
         if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot datetime x values on a non-datetime x axis')
         elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
@@ -700,7 +722,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 #        return p
     elif get_source:
         return sources[0] if len(sources)==1 else sources
-    else:
+    elif get_p:
         return p
 #    except ParseError as e:
 #        print(e)
@@ -1039,58 +1061,60 @@ def vstack(*args, merge_tools=False, tools_location='right', wrap=True, active_d
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.VBox(converted)
 
-#class AutoShow(object):
-#    def __init__(self, ip):
+class AutoShow(object):
+    def __init__(self):
 #        self.shell = ip
 #        self.last_x = None
-#        self.figures = []
-#
+        self.figures = []
+
 #    def pre_execute(self):
 #        self.last_x = self.shell.user_ns.get('x', None)
 #
-#    def pre_run_cell(self, info):
-#        FIGURE.clear()
+    def pre_run_cell(self, info):
+        FIGURES.clear()
 #        AUTOCOLOR.clear()
 #        AUTOCOLOR.append(cycle(AUTOCOLOR_PALETTE))
-#    pre_run_cell.bokeh_plot_method = True
+    pre_run_cell.bokeh_plot_method = True
 #        print('pre_run Cell code: "%s"' % info.raw_cell)
 
 #    def post_execute(self):
 #        if self.shell.user_ns.get('x', None) != self.last_x:
 #            print("x changed!")
 #
-#    def post_run_cell(self, result):
-##        print('Cell code: "%s"' % result.info.raw_cell)
-#        if result.error_before_exec:
-#            print('Error before execution: %s' % result.error_before_exec)
-#        else:
-##            p = self.shell.user_ns.get('FIGURE', [])
-##            print('(post_run) FIGURE=', FIGURE)
-#            if FIGURE:
-#                bp.show(FIGURE[0])
-#    post_run_cell.bokeh_plot_method = True
+    def post_run_cell(self, result):
+#        print('post run')
+#        print('Cell code: "%s"' % result.info.raw_cell)
+        if result.error_before_exec:
+            print('Error before execution: %s' % result.error_before_exec)
+        else:
+#            p = self.shell.user_ns.get('FIGURE', [])
+#            print('(post_run) FIGURES=', repr(FIGURES))
+            for p in FIGURES:
+                bp.show(p)
+    post_run_cell.bokeh_plot_method = True
 
-#def register_callbacks(ip):
-#    # Avoid re-registering when reloading the extension
-#    def register(event, function):
-#        for f in ip.events.callbacks[event]:
-#            if hasattr(f, 'bokeh_plot_method'):
-#                ip.events.unregister(event, f)
-##                print('unregistered')
-#        ip.events.register(event, function)
-#
-#    vw = AutoShow()
-##    ip.events.register('pre_execute', vw.pre_execute)
-#    register('pre_run_cell', vw.pre_run_cell)
-##    ip.events.register('post_execute', vw.post_execute)
-#    register('post_run_cell', vw.post_run_cell)
+def register_callbacks(ip):
+    # Avoid re-registering when reloading the extension
+    def register(event, function):
+        for f in ip.events.callbacks[event]:
+            if hasattr(f, 'bokeh_plot_method'):
+                ip.events.unregister(event, f)
+#                print('unregistered')
+        ip.events.register(event, function)
+
+    autoshow = AutoShow()
+#    ip.events.register('pre_execute', vw.pre_execute)
+    register('pre_run_cell', autoshow.pre_run_cell)
+#    ip.events.register('post_execute', vw.post_execute)
+    register('post_run_cell', autoshow.post_run_cell)
 
 def load_ipython_extension(ip):
     load()
-#    register_callbacks(ip)
-    ip.user_ns.update(dict(figure=figure,
+    register_callbacks(ip)
+    ip.user_ns.update(dict(
+        Figure=BokehlabFigure, figure=figure,
 #        loglog_figure=loglog_figure,
-        plot=plot, stem=stem,
+        plot=plot, Plot=Plot, stem=stem,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
 #        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
@@ -1137,24 +1161,24 @@ def _xylabel(self, x_label, y_label):
 # Monkey-patching
 
 #Figure._plot = Figure.plot
-Figure.plot = property(gen_plot_wrapper(plot))
-Figure.semilogx = property(gen_plot_wrapper(semilogx))
-Figure.semilogy = property(gen_plot_wrapper(semilogy))
-Figure.loglog = property(gen_plot_wrapper(loglog))
-Figure.stem = _stem_wrapper
-Figure.imshow = _imshow_wrapper
-Figure.xlabel = _xlabel
-Figure.ylabel = _ylabel
-Figure.xylabel = _xylabel
+BokehFigure.plot = property(gen_plot_wrapper(plot))
+BokehFigure.semilogx = property(gen_plot_wrapper(semilogx))
+BokehFigure.semilogy = property(gen_plot_wrapper(semilogy))
+BokehFigure.loglog = property(gen_plot_wrapper(loglog))
+BokehFigure.stem = _stem_wrapper
+BokehFigure.imshow = _imshow_wrapper
+BokehFigure.xlabel = _xlabel
+BokehFigure.ylabel = _ylabel
+BokehFigure.xylabel = _xylabel
 
-Figure._ipython_display_ = lambda self: bp.show(self)
+BokehFigure._ipython_display_ = lambda self: bp.show(self)
 Row._ipython_display_ = lambda self: bp.show(self)
 Column._ipython_display_ = lambda self: bp.show(self)
 
 def _show(self, notebook_handle=False):
     bp.show(self, notebook_handle=notebook_handle)
 
-Figure.show = _show
+BokehFigure.show = _show
 Row.show = _show
 Column.show = _show
 
