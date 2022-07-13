@@ -148,7 +148,7 @@ class BLFigure(Figure):
     def __init__(self, *args, **kwargs):
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
         self._hover = kwargs.pop('hover', False)
-        self._legend_location = kwargs.pop('legend_location', None)
+        self._legend_loc = kwargs.pop('legend_loc', None)
         super().__init__(*args, **kwargs)
     
     def _get_color(self, c):
@@ -488,7 +488,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          marker_color=None, line_color=None,
          width=None, height=None, width_policy=None, height_policy=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
-         x_label=None, y_label=None, title=None, title_location=None, legend_location=None, grid=True,
+         x_label=None, y_label=None, title=None, title_location=None, legend_loc=None, grid=True,
          background_fill_color=None, x_range=None, y_range=None,
          #get_handle=False, 
          get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, 
@@ -531,11 +531,11 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
-            if legend_location is not None:
-                p._legend_location = legend_location
-            if p._legend_location is not None:
-                kw['legend_location'] = p._legend_location
             p = figure(**kw)
+            if legend_loc is not None:
+                p._legend_loc = legend_loc
+            if p._legend_loc is not None:
+                kw['legend_loc'] = p._legend_loc
             if grid is False:
                 p.xgrid.visible = False
                 p.ygrid.visible = False
@@ -546,13 +546,15 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 #            FIGURE.append(p)
     else:
 #            p = FIGURE[0]
-        if legend_location is not None:
-            p._legend_location = legend_location
+        if legend_loc is not None:
+            p._legend_loc = legend_loc
         if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot datetime x values on a non-datetime x axis')
         elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot non-datetime x values on a datetime x axis')
 
+    if hover is not None:
+        p._hover = hover
     if p._hover:
         if is_dt:
             p.add_tools(HoverTool(tooltips=[('x', '@x{%F}'), ('y', '@y'), ('name', '$name')],
@@ -597,7 +599,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             raise ValueError(f'Unsupported plot style: {style}')
         if line_style:
             kw = kwargs.copy()
-            if legend_location != 'hide' and label_i is not None:
+            if legend_loc != 'hide' and label_i is not None:
                 kw['legend_label'] = label_i
             if hover:
                 kw['name'] = label_i
@@ -619,7 +621,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         if marker_style:
             kw = kwargs.copy()
             label_j = None if label_already_set else label_i
-            if legend_location != 'hide' and label_j is not None:
+            if legend_loc != 'hide' and label_j is not None:
                 kw['legend_label'] = label_j
             if hover:
                 kw['name'] = label_i
@@ -672,11 +674,11 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
 
-    if p._legend_location != 'hide' and display_legend:
+    if p._legend_loc != 'hide' and display_legend:
         if label is not None:
             p.legend.click_policy="hide"
-        if p._legend_location is not None:
-            p.legend.location = p._legend_location  
+        if p._legend_loc is not None:
+            p.legend.location = p._legend_loc  
             # because p.legend is not ready until the first glyph is drawn
     if x_label is not None:
         p.xaxis.axis_label = x_label
@@ -723,15 +725,15 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 
 def semilogx(*args, **kwargs):
     kwargs['mode'] = 'semilogx'
-    plot(*args, **kwargs)
+    return plot(*args, **kwargs)
 
 def semilogy(*args, **kwargs):
     kwargs['mode'] = 'semilogy'
-    plot(*args, **kwargs)
+    return plot(*args, **kwargs)
 
 def loglog(*args, **kwargs):
     kwargs['mode'] = 'loglog'
-    plot(*args, **kwargs)
+    return plot(*args, **kwargs)
 
 #def xlabel(label, p=None, **kw):
 #    if p is None:
@@ -799,7 +801,7 @@ def calc_size(width, height, im_width, im_height, toolbar):
 
 
 def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True, 
-           width=None, height=None, 
+           width=None, height=None, x_range=None, y_range=None,
            grid=True, flipud=False, hover=False, padding=0.1, 
            merge_tools=True, link=True, tools_location='right', show_cmap=False, # multiple image related
            title=None, title_location=None,
@@ -863,12 +865,18 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
 #        if not flipud:                 this does not work due to an issue in bokeh
 #            p.y_range.flipped=True     workaround below 
         y_pad = im.shape[1]*padding/2 if padding is not None else 0
-        if not flipud:
-            kw['y_range'] = [im.shape[0]+y_pad, -y_pad]
+        if y_range is not None:
+            kw['y_range'] = y_range
         else:
-            kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
+            if not flipud:
+                kw['y_range'] = [im.shape[0]+y_pad, -y_pad]
+            else:
+                kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
         x_pad = im.shape[0]*padding/2 if padding is not None else 0  # just for symmetry with y
-        kw['x_range'] = [-x_pad, im.shape[1]+x_pad]
+        if x_range is not None:
+            kw['x_range'] = x_range
+        else:
+            kw['x_range'] = [-x_pad, im.shape[1]+x_pad]
 
         if width is not None:
             kw['width'] = width
@@ -881,7 +889,7 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
             if k not in kw:
                 kw[k] = v
 #        kw['width'], kw['height'] = calc_size(kw['width'], kw['height'], im.shape[1], im.shape[0], toolbar)
-        p = BLFigure(**kw)
+        p = figure(**kw)
         if title_location is not None:
             p.title.align = 'center'
 
@@ -1090,21 +1098,28 @@ def load_ipython_extension(ip):
         bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df,
         hstack=hstack, vstack=vstack))
 
-class _plot_wrapper:
-    def __init__(self, _figure):
-        self._figure = _figure
-        
-    def __call__(self, *args, **kwargs):
-        kwargs.update(p=self._figure)
-        return plot(*args, **kwargs)
+def gen_plot_wrapper(method):
+    class _plot_wrapper:
+        def __init__(self, _figure):
+            self._figure = _figure
+            
+        def __call__(self, *args, **kwargs):
+            kwargs.update(p=self._figure)
+            return method(*args, **kwargs)
 
-    def __getattr__(self, attr):
-        return getattr(self._figure, attr)
+        def __getattr__(self, attr):
+            return getattr(self._figure, attr)
+    return _plot_wrapper
 
 def _stem_wrapper(*args, **kwargs):
     kwargs['p'] = args[0]
     args = args[1:]
     return stem(*args, **kwargs)
+
+def _imshow_wrapper(*args, **kwargs):
+    kwargs['p'] = args[0]
+    args = args[1:]
+    return imshow(*args, **kwargs)
 
 def _xlabel(self, label):
     self.xaxis.axis_label = label
@@ -1122,8 +1137,12 @@ def _xylabel(self, x_label, y_label):
 # Monkey-patching
 
 #Figure._plot = Figure.plot
-Figure.plot = property(_plot_wrapper)
+Figure.plot = property(gen_plot_wrapper(plot))
+Figure.semilogx = property(gen_plot_wrapper(semilogx))
+Figure.semilogy = property(gen_plot_wrapper(semilogy))
+Figure.loglog = property(gen_plot_wrapper(loglog))
 Figure.stem = _stem_wrapper
+Figure.imshow = _imshow_wrapper
 Figure.xlabel = _xlabel
 Figure.ylabel = _ylabel
 Figure.xylabel = _xylabel
