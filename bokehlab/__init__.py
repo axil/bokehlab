@@ -17,7 +17,7 @@ import bokeh.layouts as bl
 import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
     DatetimeAxis, Row, Column
-from bokeh.io import output_notebook, push_notebook
+from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
 
 
@@ -43,7 +43,11 @@ CONFIG = {
         'aspect_ratio': 1,
     },
     'resources': 'cdn',
+    'output': {
+        'mode': 'notebook',
+    }
 }
+CONFIG_SECTIONS = 'figure', 'imshow', 'output', 'line', 'circle'
 FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
 CONFIG_DIR = Path('~/.bokeh').expanduser()
 CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
@@ -88,7 +92,15 @@ def load(resources=None):
     if res:
         if DEBUG_RESOURCES:
             print(f'{resources} mode')
-        output_notebook(res)
+        mode = CONFIG.get('output', {}).get('mode', 'notebook')
+        if mode == 'notebook':
+            output_notebook(res)
+        elif mode == 'file':
+            filename = CONFIG.get('output', {}).get('filename', None)
+            if filename is not None:
+                output_file(filename)
+            else:
+                reset_output()
     else:
         print(f'Unknown Bokeh resources mode: "{resources}", available modes: {RESOURCE_MODES}')
 

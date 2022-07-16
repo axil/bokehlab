@@ -3,6 +3,8 @@ from collections import defaultdict
 
 import yaml
 from IPython.core.magic import register_line_magic
+from IPython.core.display import display, HTML
+
 
 @register_line_magic
 def bokehlab(line):
@@ -22,7 +24,7 @@ def bokehlab(line):
     if 'bokehlab' not in ip.extension_manager.loaded:
         ip.run_line_magic('load_ext', 'bokehlab')
     else:
-        print('BokehJS already loaded, reloading...')
+        display(HTML('<div class="bk-root">BokehJS already loaded, reloading...</div>'))
         ip.run_line_magic('reload_ext', 'bokehlab')
 
 @register_line_magic
@@ -42,7 +44,7 @@ def bokehlab_config(line):
 
     4) %bokehlab --clear deletes ~/.bokeh/bokehlab.yaml
     '''
-    from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, load_config, RESOURCE_MODES
+    from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, CONFIG_SECTIONS, load_config, RESOURCE_MODES
     load_config()
     if not line:
         for k, v in CONFIG.items():
@@ -135,10 +137,14 @@ def bokehlab_config(line):
                             print(f'Unknown resources mode: "{v}". Available modes: {RESOURCE_MODES}')
                     elif '.' in k:
                         section, key = k.split('.', 1)
-                        if section in ('figure', 'imshow'):
-                            CONFIG[section][key] = config[section][key] = v
+                        if section in CONFIG_SECTIONS:
+                            if section not in CONFIG: 
+                                CONFIG[section] = {key: v}
+                            else:
+                                CONFIG[section][key] = v
+                            config[section][key] = v
                         else:
-                            print(f'Unknown section: {section}')
+                            print(f'Unknown section: {section}. Available sections: {CONFIG_SECTIONS}')
                     else:
                         print(f'Unknown key: {k}')
             if _global:
@@ -156,3 +162,8 @@ def bokehlab_config(line):
                         on_disk[k] = v 
                 CONFIG_FILE.open('w').write(yaml.dump(on_disk))
                 print('Settings saved')
+
+@register_line_magic
+def blc(line):
+    return bokehlab_config(line)
+
