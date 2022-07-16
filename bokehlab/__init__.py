@@ -143,6 +143,9 @@ AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 
 bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow reload_ext
 
+class Missing:
+    pass
+
 class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
@@ -155,8 +158,8 @@ class BokehlabFigure(BokehFigure):
             kwargs['height'] = height
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
         self._hover = kwargs.pop('hover', False)
-        self._legend_loc = kwargs.pop('legend_loc', None)
-        for k, v in CONFIG['figure'].items():
+        self._legend_location = kwargs.pop('legend_location', Missing)
+        for k, v in CONFIG.get('figure', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
         if kwargs.get('width') == 'max':
@@ -173,7 +176,17 @@ class BokehlabFigure(BokehFigure):
             kwargs['plot_width'] = kwargs.pop('width')
         if 'height' in kwargs:
             kwargs['plot_height'] = kwargs.pop('height')
+        grid = kwargs.pop('grid', True)
+        flip_x_range = kwargs.pop('flip_x_range', False)
+        flip_y_range = kwargs.pop('flip_y_range', False)
         super().__init__(*args, **kwargs)
+        if not grid:
+            self.xgrid.visible = False
+            self.ygrid.visible = False
+        if flip_x_range:
+            self.x_range.flipped = True
+        if flip_y_range:
+            self.y_range.flipped = True
 
     def __enter__(self):
         FIGURES.append(self)
@@ -218,9 +231,6 @@ def Plot(*args, **kwargs):
 
 class ParseError(Exception):
     pass
-
-#class Missing:
-#    pass
 
 def is_string(arg):
     return isinstance(arg, str) or \
@@ -508,14 +518,19 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          p=None, hover=False, mode='plot', source=None,
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
-         width=None, height=None, width_policy=None, height_policy=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
-         x_label=None, y_label=None, title=None, title_location=None, legend_loc=None, grid=True,
-         background_fill_color=None, x_range=None, y_range=None,
+         x_label=None, y_label=None, 
          #get_handle=False, 
          get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
-         x_axis_location=None, y_axis_location=None, 
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
+    """
+    The following parameters are passed to Figure if present:
+        width, height, width_policy, height_policy,
+        background_fill_color, x_range, y_range,
+        x_axis_location, y_axis_location, 
+        title, title_location, legend_location, grid, 
+        toolbar_location, 'flip_x_range', 'flip_y_range',
+    """
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
     if len(args) == 0 and (x, y, hline, vline) == (None, None, None, None):
@@ -527,19 +542,19 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                        default_style='o-' if stem else '-')
     is_dt = check_dt(quintuples)
     figure_created = False
+    toolbar_location_fixed = 'toolbar_location' in kwargs or 'toolbar_location' in CONFIG.get('figure', [])
     if p is None:
         if not FIGURES:
             kw = {}
-            loc = locals()
             for k in ('width', 'height', 'width_policy', 'height_policy', 
                       'background_fill_color', 'x_range', 'y_range',
                       'x_axis_location', 'y_axis_location', 
-                      'title', 'title_location'):
-                v = loc[k]
-                if v is not None:
-                    kw[k] = v
-            for k, v in CONFIG['figure'].items():
-                if k not in kwargs:
+                      'title', 'title_location', 'legend_location', 'grid',
+                      'toolbar_location', 'flip_x_range', 'flip_y_range'):
+                if k in kwargs:
+                    kw[k] = kwargs.pop(k)
+            for k, v in CONFIG.get('figure', {}).items():
+                if k not in kw:
                     kw[k] = v
             if mode == 'plot':
                 pass
@@ -554,16 +569,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     kw['x_axis_type'] = 'datetime'
-            if legend_loc is not None:
-                kw['legend_loc'] = legend_loc
             p = BokehlabFigure(**kw)
-            if grid is False:
-                p.xgrid.visible = False
-                p.ygrid.visible = False
-            if flip_x_range:
-                p.x_range.flipped = True
-            if flip_y_range:
-                p.y_range.flipped = True
             if not get_p:
                 FIGURES.append(p)
             figure_created = True
@@ -589,8 +595,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     line_widths = broadcast_num(line_width, n, None, 'line_width')
     alphas = broadcast_num(alpha, n, None, 'alpha')
 
-    display_legend = False
+    legend_not_empty = False
     sources = []
+    hide_legend = p._legend_location is None
     for (x, y, style, color_str, label_i), line_width_i, alpha_i in zip(quintuples, line_widths, alphas):
         color = p._get_color(color_str) if hasattr(p, '_get_color') else '#1f77b4'
 #        if isinstance(y, torch.Tensor):
@@ -605,7 +612,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             source = ColumnDataSource(data=dict(x=x, y=y))
         label_already_set = False
         if label_i:
-            display_legend = True
+            legend_not_empty = True
         if not style:
             if stem:
                 style = 'o-'
@@ -621,7 +628,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             raise ValueError(f'Unsupported plot style: {style}')
         if line_style:
             kw = kwargs.copy()
-            if legend_loc != 'hide' and label_i is not None:
+            if not hide_legend and label_i is not None:
                 kw['legend_label'] = label_i
             if hover:
                 kw['name'] = label_i
@@ -636,14 +643,20 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             elif line_style == '--':
                 kw['line_dash'] = 'dashed'
             if stem:
+                for k, v in CONFIG.get('segment', {}).items():
+                    if k not in kw:
+                        kw[k] = v
                 p.segment('x', 'y0', 'x', 'y', source=source, color=color, **kw)
             else:
+                for k, v in CONFIG.get('line', {}).items():
+                    if k not in kw:
+                        kw[k] = v
                 p.line(x='x', y='y', source=source, color=color, **kw)
             label_already_set = True
         if marker_style:
             kw = kwargs.copy()
             label_j = None if label_already_set else label_i
-            if legend_loc != 'hide' and label_j is not None:
+            if not hide_legend and label_j is not None:
                 kw['legend_label'] = label_j
             if hover:
                 kw['name'] = label_i
@@ -696,11 +709,19 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
 
-    if p._legend_loc != 'hide' and display_legend:
+    if legend_not_empty and not hide_legend:
         if label is not None:
             p.legend.click_policy="hide"
-        if p._legend_loc is not None:
-            p.legend.location = p._legend_loc  
+        if isinstance(p._legend_location, str):
+            loc = p._legend_location
+            if loc in ('outside', 'top_outside', 'center_outside', 
+                    'bottom_outside'):
+                loc = '_'.join(p._legend_location.rsplit('_', 1)[:-1]) # prefix
+                p.add_layout(p.legend[0], 'right')
+                if not toolbar_location_fixed:
+                    p.toolbar_location = 'above'
+            if loc:
+                p.legend.location = loc
             # because p.legend is not ready until the first glyph is drawn
     if x_label is not None:
         p.xaxis.axis_label = x_label
@@ -825,7 +846,7 @@ def calc_size(width, height, im_width, im_height, toolbar):
 def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True, 
            width=None, height=None, x_range=None, y_range=None,
            grid=True, flipud=False, hover=False, padding=0.1, 
-           merge_tools=True, link=True, tools_location='right', show_cmap=False, # multiple image related
+           merge_tools=True, link=True, toolbar_location='right', show_cmap=False, # multiple image related
            title=None, title_location=None,
            get_ws=False, notebook_handle=False, **kw):
     if len(ims) > 1:
@@ -847,7 +868,7 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
             for pi in ps[1:]:
                 pi.x_range = ps[0].x_range
                 pi.y_range = ps[0].y_range
-        grid = bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=tools_location)
+        grid = bl.gridplot([ps], merge_tools=merge_tools, toolbar_location=toolbar_location)
         if show_cmap:
             grid = bl.row(grid, _ramp(cmap=cmap, padding=padding))
         return grid
@@ -1007,7 +1028,7 @@ def show_df(df, get_ws=False):
 #    def _ipython_display_(self):
 #        bp.show(self)
 
-def hstack(*args, merge_tools=False, tools_location='right', wrap=True, active_drag=None):
+def hstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None):
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):
@@ -1016,7 +1037,7 @@ def hstack(*args, merge_tools=False, tools_location='right', wrap=True, active_d
 #                kwargs[k] = v
         if merge_tools:
             p = bl.gridplot([args], merge_tools=True, 
-                            toolbar_location=tools_location)
+                            toolbar_location=toolbar_location)
             if active_drag is not None:
                 args[0].toolbar.active_drag = active_drag
         else:
@@ -1031,7 +1052,7 @@ def hstack(*args, merge_tools=False, tools_location='right', wrap=True, active_d
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.HBox(converted)
 
-def vstack(*args, merge_tools=False, tools_location='right', wrap=True, active_drag=None, **kwargs):
+def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None, **kwargs):
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
         for k in ('width_policy', 'height_policy'):
@@ -1043,7 +1064,7 @@ def vstack(*args, merge_tools=False, tools_location='right', wrap=True, active_d
 #            for k in 'width', 'height', 'width_policy', 'height_policy':
 #                kw[k] = kwargs[k]
             p = bl.gridplot([[a] for a in args], merge_tools=True, 
-                            toolbar_location=tools_location, **kwargs)
+                            toolbar_location=toolbar_location, **kwargs)
 #            for kw in 'active_drag', 'active_scroll', 'active_tap', 'active_inspect':
 #                if kw in kwargs:
 #                    setattr(args[0].toolbar, kw, kwargs[kw])
