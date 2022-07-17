@@ -219,9 +219,17 @@ class BokehlabFigure(BokehFigure):
 def figure(width=None, height=None, **kwargs):
     FIGURES.append(BokehlabFigure(width=width, height=height, **kwargs))
 
-def Plot(*args, **kwargs):
-    kwargs['get_p'] = True
-    return plot(*args, **kwargs)
+#def Plot(*args, **kwargs):
+#    kwargs['get_p'] = True
+#    return plot(*args, **kwargs)
+
+class Plot:
+    def __init__(self, *args, **kwargs):
+        kwargs['get_p'] = True
+        self.figure = plot(*args, **kwargs)
+    
+    def _ipython_display_(self):
+        bp.show(self.figure)
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -1041,6 +1049,7 @@ def show_df(df, get_ws=False):
 #        bp.show(self)
 
 def hstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None):
+    args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):
@@ -1065,6 +1074,7 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active
         return ipw.HBox(converted)
 
 def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None, **kwargs):
+    args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
         for k in ('width_policy', 'height_policy'):
