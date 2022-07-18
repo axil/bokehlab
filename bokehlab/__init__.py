@@ -42,13 +42,15 @@ CONFIG = {
     'imshow': {
         'aspect_ratio': 1,
     },
-    'resources': 'cdn',
+    'resources': { 
+        'mode': 'cdn',
+    },
     'output': {
         'mode': 'notebook',
-    }
+    },
 }
-CONFIG_SECTIONS = 'figure', 'imshow', 'output', 'line', 'circle'
-FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
+CONFIG_SECTIONS = 'figure', 'imshow', 'resources', 'output', 'line', 'circle'
+#FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
 CONFIG_DIR = Path('~/.bokeh').expanduser()
 CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
 CONFIG_LOADED = False
@@ -79,7 +81,7 @@ def load(resources=None):
     """
     load_config()
     if resources is None:
-        resources = CONFIG['resources']
+        resources = CONFIG.get('resources', {}).get('mode', 'cdn')
     res = None
     if resources == 'inline':
         res = INLINE
@@ -174,12 +176,16 @@ class BokehlabFigure(BokehFigure):
         for k, v in CONFIG.get('figure', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
-        if kwargs.get('width') == 'max':
+        if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
             del kwargs['width']
-            kwargs['width_policy'] = 'max'
-        if kwargs.get('height') == 'max':
             del kwargs['height']
-            kwargs['height_policy'] = 'max'
+            kwargs['sizing_mode'] = 'stretch_both'
+        elif kwargs.get('width') == 'max':
+            del kwargs['width']
+            kwargs['sizing_mode'] = 'stretch_width'
+        elif kwargs.get('height') == 'max':
+            del kwargs['height']
+            kwargs['sizing_mode'] = 'stretch_height'
         if 'x_label' in kwargs:
             kwargs['x_axis_label'] = kwargs.pop('x_label')
         if 'y_label' in kwargs:
@@ -545,7 +551,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
     """
     The following parameters are passed to Figure if present:
-        width, height, width_policy, height_policy,
+        width, height, width_policy, height_policy, sizing_mode,
         background_fill_color, x_range, y_range,
         x_axis_location, y_axis_location, 
         title, title_location, legend_location, grid, 
@@ -566,7 +572,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     if p is None:
         if not FIGURES:
             kw = {}
-            for k in ('width', 'height', 'width_policy', 'height_policy', 
+            for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
                       'background_fill_color', 'x_range', 'y_range',
                       'x_axis_location', 'y_axis_location', 
                       'title', 'title_location', 'legend_location', 'grid',
@@ -1077,10 +1083,10 @@ def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active
     args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
-        for k in ('width_policy', 'height_policy'):
-            v = CONFIG['figure'].get(k)
-            if v not in ('auto', 'fixed', None):
-                kwargs[k] = v
+#        for k in ('width_policy', 'height_policy'):
+#            v = CONFIG['figure'].get(k)
+#            if v == 'max':
+#                kwargs[k] = v
         if merge_tools:
 #            kw = {}
 #            for k in 'width', 'height', 'width_policy', 'height_policy':
