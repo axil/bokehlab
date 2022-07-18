@@ -172,7 +172,8 @@ class BokehlabFigure(BokehFigure):
             kwargs['height'] = height
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
         self._hover = kwargs.pop('hover', False)
-        self._legend_location = kwargs.pop('legend_location', Missing)
+        self._legend_location = kwargs.pop('legend_location', 
+                                kwargs.pop('legend_loc', Missing))
         for k, v in CONFIG.get('figure', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
@@ -236,6 +237,22 @@ class Plot:
     
     def _ipython_display_(self):
         bp.show(self.figure)
+
+    @property
+    def x_range(self):
+        return self.figure.x_range
+
+    @x_range.setter
+    def x_range(self, v):
+        self.figure.x_range = v
+
+    @property
+    def y_range(self):
+        return self.figure.x_range
+
+    @y_range.setter
+    def y_range(self, v):
+        self.figure.x_range = v
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -575,7 +592,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
                       'background_fill_color', 'x_range', 'y_range',
                       'x_axis_location', 'y_axis_location', 
-                      'title', 'title_location', 'legend_location', 'grid',
+                      'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
                       'toolbar_location', 'flip_x_range', 'flip_y_range'):
                 if k in kwargs:
                     kw[k] = kwargs.pop(k)
@@ -951,14 +968,8 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
             kw['width'] = width
         if height is not None:
             kw['height'] = height
-        for k, v in CONFIG['figure'].items():
-            if k not in kw:
-                kw[k] = v
-        for k, v in CONFIG['imshow'].items():
-            if k not in kw:
-                kw[k] = v
 #        kw['width'], kw['height'] = calc_size(kw['width'], kw['height'], im.shape[1], im.shape[0], toolbar)
-        p = figure(**kw)
+        p = BokehlabFigure(**kw)
         if title_location is not None:
             p.title.align = 'center'
 
