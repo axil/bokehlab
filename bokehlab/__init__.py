@@ -174,6 +174,7 @@ class BokehlabFigure(BokehFigure):
         self._hover = kwargs.pop('hover', False)
         self._legend_location = kwargs.pop('legend_location', 
                                 kwargs.pop('legend_loc', Missing))
+        self._legend_added = False
         for k, v in CONFIG.get('figure', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
@@ -248,11 +249,11 @@ class Plot:
 
     @property
     def y_range(self):
-        return self.figure.x_range
+        return self.figure.y_range
 
     @y_range.setter
     def y_range(self, v):
-        self.figure.x_range = v
+        self.figure.y_range = v
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -557,6 +558,17 @@ ANGLES = {'<': math.pi/2, 'v': math.pi, '>': -math.pi/2}
 
 LINE_STYLES = ['-', '--', ':', '-.']
 
+def collect_figure_options(kwargs):
+    kw = {}
+    for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
+                'background_fill_color', 'x_range', 'y_range',
+                'x_axis_location', 'y_axis_location', 
+                'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
+                'toolbar_location', 'flip_x_range', 'flip_y_range'):
+        if k in kwargs:
+            kw[k] = kwargs.pop(k)
+    return kw
+
 def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=None, alpha=None,
          p=None, hover=False, mode='plot', source=None,
          marker_size=None, fill_color=None, marker_line_width=None, 
@@ -571,7 +583,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         width, height, width_policy, height_policy, sizing_mode,
         background_fill_color, x_range, y_range,
         x_axis_location, y_axis_location, 
-        title, title_location, legend_location, grid, 
+        title, title_location, legend_location, legend_loc, grid, 
         toolbar_location, 'flip_x_range', 'flip_y_range',
     """
 #    print('(plot) FIGURE =', FIGURE)
@@ -586,33 +598,26 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     is_dt = check_dt(quintuples)
     figure_created = False
     toolbar_location_fixed = 'toolbar_location' in kwargs or 'toolbar_location' in CONFIG.get('figure', [])
+    figure_opts = collect_figure_options(kwargs)
     if p is None:
         if not FIGURES:
-            kw = {}
-            for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
-                      'background_fill_color', 'x_range', 'y_range',
-                      'x_axis_location', 'y_axis_location', 
-                      'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
-                      'toolbar_location', 'flip_x_range', 'flip_y_range'):
-                if k in kwargs:
-                    kw[k] = kwargs.pop(k)
-            for k, v in CONFIG.get('figure', {}).items():
-                if k not in kw:
-                    kw[k] = v
+#            for k, v in CONFIG.get('figure', {}).items():
+#                if k not in kw:
+#                    kw[k] = v
             if mode == 'plot':
                 pass
             elif mode == 'semilogx':
-                kw['x_axis_type'] = 'log'
+                figure_opts['x_axis_type'] = 'log'
             elif mode == 'semilogy':
-                kw['y_axis_type'] = 'log'
+                figure_opts['y_axis_type'] = 'log'
             elif mode == 'loglog':
-                kw['x_axis_type'] = kw['y_axis_type'] = 'log'
+                figure_opts['x_axis_type'] = figure_opts['y_axis_type'] = 'log'
             if is_dt:
-                if 'x_axis_type' in kw and kw['x_axis_type'] is not None:
+                if 'x_axis_type' in figure_opts and figure_opts['x_axis_type'] is not None:
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
-                    kw['x_axis_type'] = 'datetime'
-            p = BokehlabFigure(**kw)
+                    figure_opts['x_axis_type'] = 'datetime'
+            p = BokehlabFigure(**figure_opts)
             if not get_p:
                 FIGURES.append(p)
             figure_created = True
@@ -755,16 +760,16 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     if legend_not_empty and not hide_legend:
         if label is not None:
             p.legend.click_policy="hide"
-        if isinstance(p._legend_location, str):
+        if isinstance(p._legend_location, str) and not p._legend_added:
             loc = p._legend_location
-            if loc in ('outside', 'top_outside', 'center_outside', 
-                    'bottom_outside'):
+            if loc in ('outside', 'top_outside', 'center_outside', 'bottom_outside'):
                 loc = '_'.join(p._legend_location.rsplit('_', 1)[:-1]) # prefix
                 p.add_layout(p.legend[0], 'right')
                 if not toolbar_location_fixed:
                     p.toolbar_location = 'above'
             if loc:
                 p.legend.location = loc
+            p._legend_added = True
             # because p.legend is not ready until the first glyph is drawn
     if x_label is not None:
         p.xaxis.axis_label = x_label
@@ -849,21 +854,43 @@ def loglog(*args, **kwargs):
 #    p.xaxis.axis_label = xlabel
 #    p.yaxis.axis_label = ylabel
 
-def hist(x, nbins=30, height=None, width=None, get_ws=False, **kw):
-    if width is None:
-        width = CONFIG['width']
-    if height is None:
-        height = CONFIG['height']
-    hist, edges = np.histogram(x, density=True, bins=nbins)
-    p = figure(height=height, width=width)
-    defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
-    defaults.update(kw)
-    source = ColumnDataSource(data=dict(top=hist, bottom=np.zeros_like(hist), left=edges[:-1], right=edges[1:]))
-    p.quad(source=source, **defaults)
-    if get_ws:
-        return BokehWidget(p), source
-    else:
-        return p
+#def hist(x, nbins=30, width=None, height=None, get_p=False, get_ws=False, p=None, hover=False, **kwargs):
+def hist(x, bins=30, hover=False, get_p=False, p=None, **kwargs):
+    h = Hist(x, bins, hover=hover, get_p=get_p, **kwargs)
+    if get_p:
+        return h.figure
+
+class Hist:
+    def __init__(self, x, bins=30, get_p=True, get_ws=False, p=None, hover=False, **kwargs):
+        if p is None:
+            if not FIGURES:
+                kw = collect_figure_options(kwargs)
+                p = BokehlabFigure(**kw)
+                if not get_p:
+                    FIGURES.append(p)
+            else:
+                p = FIGURES[-1] 
+        values, edges = np.histogram(x, density=True, bins=bins)
+        for k, v in CONFIG.get('segment', {}).items():
+            if k not in kwargs:
+                kwargs[k] = v
+        defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
+        defaults.update(kwargs)
+        source = ColumnDataSource(data=dict(top=values, bottom=np.zeros_like(values), 
+                                            left=edges[:-1], right=edges[1:]))
+        p.quad(source=source, **defaults)
+        self.histogram = values
+        self.bin_edges = edges
+        self.figure = p
+        if hover:
+            p.add_tools(HoverTool(tooltips = [("left", "@left"),("right", "@right"),("y", "@top")]))
+
+    @property
+    def widget(self):
+        return BokehWidget(self.figure)
+    
+    def _ipython_display_(self):
+        bp.show(self.figure)
 
 def _ramp(cmap, padding):
     return imshow(np.arange(256)[None, :].T.repeat(30, axis=1), cmap=cmap, show=False, 
@@ -891,7 +918,7 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
            grid=True, flipud=False, hover=False, padding=0.1, 
            merge_tools=True, link=True, toolbar_location='right', show_cmap=False, # multiple image related
            title=None, title_location=None,
-           get_ws=False, notebook_handle=False, **kw):
+           get_ws=False, notebook_handle=False, **kwargs):
     if len(ims) > 1:
         if link:
             max_height = max(im.shape[0] for im in ims)
@@ -940,6 +967,12 @@ def imshow(*ims, p=None, cmap='viridis', stretch=True, axes=False, toolbar=True,
 #        return bp.show(bl.column(ps))
 
     im = ims[0]
+    _padding = CONFIG.get('imshow', {}).get('padding', None)
+    if _padding is not None:
+        padding = _padding
+    _axes = CONFIG.get('imshow', {}).get('axes', None)
+    if _axes is not None:
+        axes = _axes
     if p is None:
         kw = {}
         if hover is True:
@@ -1065,7 +1098,7 @@ def show_df(df, get_ws=False):
 #    def _ipython_display_(self):
 #        bp.show(self)
 
-def hstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None):
+def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None):
     args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if all_bokeh:
@@ -1174,7 +1207,7 @@ def load_ipython_extension(ip):
     ip.user_ns.update(dict(
         Figure=BokehlabFigure, figure=figure,
 #        loglog_figure=loglog_figure,
-        plot=plot, Plot=Plot, stem=stem,
+        plot=plot, Plot=Plot, stem=stem, Hist=Hist,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
 #        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,

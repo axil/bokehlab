@@ -1,3 +1,4 @@
+import sys
 import os
 from pathlib import Path
 from shutil import move
@@ -11,10 +12,13 @@ fix = ";n[0].removeAttribute('id')"
 if context+fix in txt:
     print('Already patched')
 elif context in txt:
-    move('bokeh.min.js', 'bokeh.min.js.bak')
-    txt = txt.replace(context, context + fix, 1)
-    with open('bokeh.min.js', 'w', newline='') as f:
-        f.write(txt)
-    print('Patched ok')
+    if sys.argv[1] in ('-d', '--dry-run'):
+        print('Patchable (dry run)')
+    else:
+        move('bokeh.min.js', 'bokeh.min.js.bak')
+        txt = txt.replace(context, context + fix, 1)
+        with open('bokeh.min.js', 'w', newline='') as f:
+            f.write(txt)
+        print('Patched ok')
 else:
     print('Patch not appliable')
