@@ -1,8 +1,9 @@
 import os
 from collections import defaultdict
+from copy import deepcopy
 
 import yaml
-from IPython.core.magic import register_line_magic
+from IPython.core.magic import register_line_magic, register_line_cell_magic
 from IPython.core.display import display, HTML
 
 
@@ -27,8 +28,63 @@ def bokehlab(line):
         display(HTML('<div class="bk-root">BokehJS already loaded, reloading...</div>'))
         ip.run_line_magic('reload_ext', 'bokehlab')
 
-@register_line_magic
-def bokehlab_config(line):
+def parse_config_line(parts, CONFIG, config=None, verbose=True):
+    from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, CONFIG_SECTIONS, load_config, RESOURCE_MODES    ##
+    if '-v' in parts or '--verbose' in parts:
+        verbose = True
+    for part in parts:
+        if '=' not in part:
+            continue
+        k, v = part.split('=', 1)
+        if len(v)>1 and v[0] == v[-1] == "'":
+            v = v[1:-1]
+        elif v == 'None':
+            v = None
+        elif v == 'True':
+            v = True
+        elif v == 'False':
+            v = False
+        else:
+            try:
+                v = int(v)
+            except:
+                print(f'Type of "{v}" not recognized (use single or double quotes for strings)')
+                continue
+        if k in ('height', 'width'):
+            k = 'figure.' + k
+        if k == 'resources':
+            k = 'resources.mode' + k
+        if verbose:
+            print(k, '=', repr(v))
+        if '.' in k:
+            if k == 'resources.mode' and v not in RESOURCE_MODES:
+                print(f'Unknown resources mode: "{v}". Available modes: {RESOURCE_MODES}')
+            else:
+                section, key = k.split('.', 1)
+                if section in CONFIG_SECTIONS:
+                    if section not in CONFIG: 
+                        CONFIG[section] = {key: v}
+                    else:
+                        CONFIG[section][key] = v
+                    if config is not None:
+                        config[section][key] = v
+                else:
+                    print(f'Unknown section: {section}. Available sections: {CONFIG_SECTIONS}')
+        else:
+            print(f'Unknown key: {k}')
+
+def read_config():
+    from bokehlab import CONFIG_DIR, CONFIG_FILE
+    if not CONFIG_DIR.exists():
+        CONFIG_DIR.mkdir()
+    if CONFIG_FILE.exists():
+        on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
+    else:
+        on_disk = {}
+    return on_disk
+
+@register_line_cell_magic
+def bokehlab_config(line, cell=None):
     '''
     Configure bokehlab. Syntax: 
     
@@ -46,7 +102,15 @@ def bokehlab_config(line):
     '''
     from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, CONFIG_SECTIONS, load_config, RESOURCE_MODES
     load_config()
-    if not line:
+    if cell is not None:
+#        print('got', line, cell)
+        config_backup = deepcopy(CONFIG)
+        parse_config_line(line.split(), CONFIG, verbose=False)
+        get_ipython().run_cell(cell)      ##
+#        print('done')
+        CONFIG.clear()
+        CONFIG.update(config_backup)
+    elif not line:
         for k, v in CONFIG.items():
             if isinstance(v, dict):
                 for kk, vv in v.items():
@@ -87,12 +151,7 @@ def bokehlab_config(line):
                             print(f'{part} not found')
                     keys.append(part)
             if _global:
-                if not CONFIG_DIR.exists():
-                    CONFIG_DIR.mkdir()
-                if CONFIG_FILE.exists():
-                    on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
-                else:
-                    on_disk = {}
+                on_disk = read_config()
                 for part in keys:
                     if '.' in part:
                         section, key = part.split('.', 1)
@@ -107,53 +166,9 @@ def bokehlab_config(line):
         else:
             _global = False
             config = defaultdict(dict)   # items to save to global config
-            for part in parts:
-                if part in ('-g', '--global'):
-                    print(f'Editing global settings in {CONFIG_FILE}')
-                    _global = True
-                elif '=' in part:
-                    k, v = part.split('=', 1)
-                    if len(v)>1 and v[0] == v[-1] == "'":
-                        v = v[1:-1]
-                    elif v == 'None':
-                        v = None
-                    elif v == 'True':
-                        v = True
-                    elif v == 'False':
-                        v = False
-                    else:
-                        try:
-                            v = int(v)
-                        except:
-                            print(f'Type of "{v}" not recognized (use single or double quotes for strings)')
-                            continue
-                    if k in ('height', 'width'):
-                        k = 'figure.' + k
-                    print(k, '=', repr(v))
-                    if k == 'resources':
-                        if v in RESOURCE_MODES:
-                            CONFIG[k] = config[k] = v
-                        else:
-                            print(f'Unknown resources mode: "{v}". Available modes: {RESOURCE_MODES}')
-                    elif '.' in k:
-                        section, key = k.split('.', 1)
-                        if section in CONFIG_SECTIONS:
-                            if section not in CONFIG: 
-                                CONFIG[section] = {key: v}
-                            else:
-                                CONFIG[section][key] = v
-                            config[section][key] = v
-                        else:
-                            print(f'Unknown section: {section}. Available sections: {CONFIG_SECTIONS}')
-                    else:
-                        print(f'Unknown key: {k}')
+            parse_config_line(parts, CONFIG, config)
             if _global:
-                if not CONFIG_DIR.exists():
-                    CONFIG_DIR.mkdir()
-                if CONFIG_FILE.exists():
-                    on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
-                else:
-                    on_disk = {}
+                on_disk = read_config()
                 for k, v in config.items():
                     if k in on_disk and isinstance(v, dict):
                         for kk, vv in v.items():
@@ -163,7 +178,8 @@ def bokehlab_config(line):
                 CONFIG_FILE.open('w').write(yaml.dump(on_disk))
                 print('Settings saved')
 
-@register_line_magic
-def blc(line):
-    return bokehlab_config(line)
+@register_line_cell_magic
+def blc(line, cell=None):
+    return bokehlab_config(line, cell)
+
 

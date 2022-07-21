@@ -160,6 +160,18 @@ bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow re
 class Missing:
     pass
 
+def expand_aliases(kw):
+    if 'legend_loc' in kw:
+        if 'legend_location' in kw and kw['legend_loc'] != kw['legend_location']:
+            raise ValueError('Both legend_loc and legend_location are present and differ.')
+        else:
+            kw['legend_location'] = kw.pop('legend_loc')
+    if 'toolbar_loc' in kw:
+        if 'toolbar_location' in kw and kw['toolbar_loc'] != kw['toolbar_location']:
+            raise ValueError('Both toolbar_loc and toolbar_location are present and differ.')
+        else:
+            kw['toolbar_location'] = kw.pop('toolbar_loc')
+
 class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
@@ -170,14 +182,15 @@ class BokehlabFigure(BokehFigure):
             kwargs['width'] = width
         if height is not None:
             kwargs['height'] = height
+        expand_aliases(kwargs)
+        for k, v in CONFIG.get('figure', {}).items():
+            if k not in kwargs:
+                kwargs[k] = v
         self._autocolor = cycle(AUTOCOLOR_PALETTE)
         self._hover = kwargs.pop('hover', False)
         self._legend_location = kwargs.pop('legend_location', 
                                 kwargs.pop('legend_loc', Missing))
         self._legend_added = False
-        for k, v in CONFIG.get('figure', {}).items():
-            if k not in kwargs:
-                kwargs[k] = v
         if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
             del kwargs['width']
             del kwargs['height']
@@ -254,6 +267,11 @@ class Plot:
     @y_range.setter
     def y_range(self, v):
         self.figure.y_range = v
+
+class Stem(Plot):
+    def __init__(self, *args, **kwargs):
+        kwargs['get_p'] = True
+        self.figure = stem(*args, **kwargs)    
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -491,7 +509,11 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
     elif isinstance(label, str) and n == 1:
         label = [label]
     elif isinstance(label, (list, tuple)) and len(label) == n:
-        pass
+        if not isinstance(label[0], str):
+            label = list(map(str, label))
+    elif isinstance(label, np.ndarray) and len(label) == n:
+        if not isinstance(label[0], str):
+            label = list(map(str, label))
     else:
         raise ValueError(f'length of label = {len(label)} must match the number of plots = {n}')
 
@@ -558,16 +580,16 @@ ANGLES = {'<': math.pi/2, 'v': math.pi, '>': -math.pi/2}
 
 LINE_STYLES = ['-', '--', ':', '-.']
 
-def collect_figure_options(kwargs):
-    kw = {}
+def collect_figure_options(kw):
+    res = {}
     for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
-                'background_fill_color', 'x_range', 'y_range',
-                'x_axis_location', 'y_axis_location', 
-                'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
-                'toolbar_location', 'flip_x_range', 'flip_y_range'):
-        if k in kwargs:
-            kw[k] = kwargs.pop(k)
-    return kw
+              'background_fill_color', 'x_range', 'y_range',
+              'x_axis_location', 'y_axis_location', 
+              'title', 'title_location', 'legend_location', 'grid',
+              'toolbar_location', 'flip_x_range', 'flip_y_range'):
+        if k in kw:
+            res[k] = kw.pop(k)
+    return res
 
 def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=None, alpha=None,
          p=None, hover=False, mode='plot', source=None,
@@ -576,7 +598,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
          x_label=None, y_label=None, 
          #get_handle=False, 
-         get_source=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
+         get_source=False, get_src=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
          flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
     """
     The following parameters are passed to Figure if present:
@@ -597,13 +619,10 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                        default_style='o-' if stem else '-')
     is_dt = check_dt(quintuples)
     figure_created = False
-    toolbar_location_fixed = 'toolbar_location' in kwargs or 'toolbar_location' in CONFIG.get('figure', [])
+    toolbar_location_overridden = 'toolbar_location' in kwargs or 'toolbar_location' in CONFIG.get('figure', [])
     figure_opts = collect_figure_options(kwargs)
     if p is None:
         if not FIGURES:
-#            for k, v in CONFIG.get('figure', {}).items():
-#                if k not in kw:
-#                    kw[k] = v
             if mode == 'plot':
                 pass
             elif mode == 'semilogx':
@@ -623,6 +642,12 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             figure_created = True
         else:
             p = FIGURES[-1]
+            expand_aliases(figure_opts)
+            if 'legend_location' in figure_opts:
+                if p._legend_location is Missing:
+                    p._legend_location = figure_opts['legend_location']
+            if 'toolbar_location' in figure_opts:
+                p.toolbar_location = figure_opts['toolbar_location']
     if not figure_created:
         if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot datetime x values on a non-datetime x axis')
@@ -672,9 +697,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         else:
             marker_style= ''
             line_style = style
-        if line_style and line_style not in LINE_STYLES:
-            raise ValueError(f'Unsupported plot style: {style}')
         if line_style:
+            if line_style not in LINE_STYLES:
+                raise ValueError(f'Unsupported plot style: {style}')
             kw = kwargs.copy()
             if not hide_legend and label_i is not None:
                 kw['legend_label'] = label_i
@@ -765,7 +790,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             if loc in ('outside', 'top_outside', 'center_outside', 'bottom_outside'):
                 loc = '_'.join(p._legend_location.rsplit('_', 1)[:-1]) # prefix
                 p.add_layout(p.legend[0], 'right')
-                if not toolbar_location_fixed:
+                if not toolbar_location_overridden and p.toolbar_location=='right':
                     p.toolbar_location = 'above'
             if loc:
                 p.legend.location = loc
@@ -789,7 +814,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 #    elif show is False:
 #        FIGURE.clear()
 #        return p
-    elif get_source:
+    elif get_source or get_src:
         return sources[0] if len(sources)==1 else sources
     elif get_p:
         return p
@@ -1181,9 +1206,9 @@ class AutoShow(object):
             print('Error before execution: %s' % result.error_before_exec)
         else:
 #            p = self.shell.user_ns.get('FIGURE', [])
-#            print('(post_run) FIGURES=', repr(FIGURES))
             for p in FIGURES:
                 bp.show(p)
+            FIGURES.clear()
     post_run_cell.bokeh_plot_method = True
 
 def register_callbacks(ip):
@@ -1207,12 +1232,12 @@ def load_ipython_extension(ip):
     ip.user_ns.update(dict(
         Figure=BokehlabFigure, figure=figure,
 #        loglog_figure=loglog_figure,
-        plot=plot, Plot=Plot, stem=stem, Hist=Hist,
+        plot=plot, Plot=Plot, stem=stem, Stem=Stem, hist=hist, Hist=Hist,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
 #        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook, BokehWidget=BokehWidget,
-        bp=bp, bl=bl, imshow=imshow, hist=hist, show_df=show_df,
+        bp=bp, bl=bl, imshow=imshow, show_df=show_df,
         hstack=hstack, vstack=vstack))
 
 def gen_plot_wrapper(method):
