@@ -172,6 +172,18 @@ def expand_aliases(kw):
         else:
             kw['toolbar_location'] = kw.pop('toolbar_loc')
 
+def process_max_size(kwargs):
+    if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
+        del kwargs['width']
+        del kwargs['height']
+        kwargs['sizing_mode'] = 'stretch_both'
+    elif kwargs.get('width') == 'max':
+        del kwargs['width']
+        kwargs['sizing_mode'] = 'stretch_width'
+    elif kwargs.get('height') == 'max':
+        del kwargs['height']
+        kwargs['sizing_mode'] = 'stretch_height'
+
 class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
@@ -190,17 +202,9 @@ class BokehlabFigure(BokehFigure):
         self._hover = kwargs.pop('hover', False)
         self._legend_location = kwargs.pop('legend_location', 
                                 kwargs.pop('legend_loc', Missing))
+        self._legend_title = kwargs.pop('legend_title', None)
         self._legend_added = False
-        if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
-            del kwargs['width']
-            del kwargs['height']
-            kwargs['sizing_mode'] = 'stretch_both'
-        elif kwargs.get('width') == 'max':
-            del kwargs['width']
-            kwargs['sizing_mode'] = 'stretch_width'
-        elif kwargs.get('height') == 'max':
-            del kwargs['height']
-            kwargs['sizing_mode'] = 'stretch_height'
+        process_max_size(kwargs)
         if 'x_label' in kwargs:
             kwargs['x_axis_label'] = kwargs.pop('x_label')
         if 'y_label' in kwargs:
@@ -586,7 +590,8 @@ def collect_figure_options(kw):
               'background_fill_color', 'x_range', 'y_range',
               'x_axis_location', 'y_axis_location', 
               'title', 'title_location', 'legend_location', 'grid',
-              'toolbar_location', 'flip_x_range', 'flip_y_range'):
+              'toolbar_location', 'toolbar_loc', 'flip_x_range', 'flip_y_range',
+              'legend_title'):
         if k in kw:
             res[k] = kw.pop(k)
     return res
@@ -606,7 +611,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         background_fill_color, x_range, y_range,
         x_axis_location, y_axis_location, 
         title, title_location, legend_location, legend_loc, grid, 
-        toolbar_location, 'flip_x_range', 'flip_y_range',
+        toolbar_location, 'flip_x_range', 'flip_y_range', 
+        'legend_title'
     """
 #    print('(plot) FIGURE =', FIGURE)
 #    try:
@@ -796,6 +802,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 p.legend.location = loc
             p._legend_added = True
             # because p.legend is not ready until the first glyph is drawn
+        if p._legend_title is not None:
+            p.legend.title = p._legend_title
     if x_label is not None:
         p.xaxis.axis_label = x_label
     if y_label is not None:
@@ -1123,9 +1131,16 @@ def show_df(df, get_ws=False):
 #    def _ipython_display_(self):
 #        bp.show(self)
 
-def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None):
+def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, **kwargs):
     args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    if 'width' not in kwargs:
+        if CONFIG.get('figure', {}).get('width', None) == 'max':
+            kwargs['width'] = 'max'
+    if 'height' not in kwargs:
+        if CONFIG.get('figure', {}).get('height', None) == 'max':
+            kwargs['height'] = 'max'
+    process_max_size(kwargs)
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):
 #            v = CONFIG['figure'].get(k)
@@ -1133,11 +1148,11 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
 #                kwargs[k] = v
         if merge_tools:
             p = bl.gridplot([args], merge_tools=True, 
-                            toolbar_location=toolbar_location)
+                            toolbar_location=toolbar_location, **kwargs)
             if active_drag is not None:
                 args[0].toolbar.active_drag = active_drag
         else:
-            p = bl.row(*args)
+            p = bl.row(*args, **kwargs)
         if wrap:
             return BokehWidget(p)
         else:
@@ -1151,6 +1166,14 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
 def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None, **kwargs):
     args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    if 'width' not in kwargs:
+        if CONFIG.get('figure', {}).get('width', None) == 'max':
+            kwargs['width'] = 'max'
+    if 'height' not in kwargs:
+        if CONFIG.get('figure', {}).get('height', None) == 'max':
+            kwargs['height'] = 'max'
+    process_max_size(kwargs)
+
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):
 #            v = CONFIG['figure'].get(k)
