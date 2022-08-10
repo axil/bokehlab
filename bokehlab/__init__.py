@@ -57,6 +57,7 @@ CONFIG_LOADED = False
 DEBUG_CONFIG = False
 DEBUG_RESOURCES = False
 RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
+SIZING_METHOD = 0
 
 def load_config():
     global CONFIG_LOADED
@@ -172,17 +173,26 @@ def expand_aliases(kw):
         else:
             kw['toolbar_location'] = kw.pop('toolbar_loc')
 
-def process_max_size(kwargs):
-    if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
-        del kwargs['width']
-        del kwargs['height']
-        kwargs['sizing_mode'] = 'stretch_both'
-    elif kwargs.get('width') == 'max':
-        del kwargs['width']
-        kwargs['sizing_mode'] = 'stretch_width'
-    elif kwargs.get('height') == 'max':
-        del kwargs['height']
-        kwargs['sizing_mode'] = 'stretch_height'
+if SIZING_METHOD == 1:
+    def process_max_size(kwargs):
+        if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
+            del kwargs['width']
+            del kwargs['height']
+            kwargs['sizing_mode'] = 'stretch_both'
+        elif kwargs.get('width') == 'max':
+            del kwargs['width']
+            kwargs['sizing_mode'] = 'stretch_width'
+        elif kwargs.get('height') == 'max':
+            del kwargs['height']
+            kwargs['sizing_mode'] = 'stretch_height'
+else:
+    def process_max_size(kwargs):
+        if kwargs.get('width') == 'max':
+            del kwargs['width']
+            kwargs['width_policy'] = 'max'
+        elif kwargs.get('height') == 'max':
+            del kwargs['height']
+            kwargs['height_policy'] = 'max'
 
 class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
@@ -276,6 +286,24 @@ class Stem(Plot):
     def __init__(self, *args, **kwargs):
         kwargs['get_p'] = True
         self.figure = stem(*args, **kwargs)    
+
+class Semilogx(Plot):
+    def __init__(self, *args, **kwargs):
+        kwargs['get_p'] = True
+        kwargs['mode'] = 'semilogx'
+        self.figure = plot(*args, **kwargs)
+
+class Semilogy(Plot):
+    def __init__(self, *args, **kwargs):
+        kwargs['get_p'] = True
+        kwargs['mode'] = 'semilogy'
+        self.figure = plot(*args, **kwargs)
+
+class Loglog(Plot):
+    def __init__(self, *args, **kwargs):
+        kwargs['get_p'] = True
+        kwargs['mode'] = 'loglog'
+        self.figure = plot(*args, **kwargs)
 
 #def loglog_figure(width=None, height=None, 
 #                  width_policy=None, height_policy=None, 
@@ -372,7 +400,7 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
 
     elif isinstance(y, (list, tuple)):
         if len(y) == 0:         # plot([], [])
-            pass
+            y = [y]
         else:
             if isinstance(y[0], (int, float, np.number)):      # flat list: [1,2,3]
                 y = [y]
@@ -459,7 +487,7 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
     elif isinstance(x, (list, tuple)):
         if len(x) == 0:
             if len(y) != 0:
-                raise ValueError('Length of x is 0 while len(y) is {len(y)}')
+                x = [x] * n
         elif isinstance(x[0], (int, float, np.number)):
             x = [x] * n
         elif isinstance(x[0], (list, tuple, np.ndarray, pd.Index)):
@@ -518,6 +546,9 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
     elif isinstance(label, np.ndarray) and len(label) == n:
         if not isinstance(label[0], str):
             label = list(map(str, label))
+    elif isinstance(label, str):
+        if n > 1:
+            label = [label] * n
     else:
         raise ValueError(f'length of label = {len(label)} must match the number of plots = {n}')
 
@@ -1257,6 +1288,7 @@ def load_ipython_extension(ip):
 #        loglog_figure=loglog_figure,
         plot=plot, Plot=Plot, stem=stem, Stem=Stem, hist=hist, Hist=Hist,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
+        Semilogx=Semilogx, Semilogy=Semilogy, Loglog=Loglog,
 #        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
         RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook, BokehWidget=BokehWidget,
