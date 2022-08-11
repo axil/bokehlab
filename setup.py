@@ -11,7 +11,7 @@ setuptools.setup(
     author='Lev Maximov',
     author_email='lev.maximov@gmail.com',
     url='https://github.com/axil/bokehlab',
-    description="Interactive plotting with familiar syntax in jupyter notebooks.",
+    description="Interactive plotting with familiar syntax in Jupyter notebooks.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=['bokeh', 'matplotlib', 'pyyaml'],
