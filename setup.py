@@ -14,7 +14,7 @@ setuptools.setup(
     description="Interactive plotting with familiar syntax in Jupyter notebooks.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=['bokeh', 'matplotlib', 'pyyaml'],
+    install_requires=['bokeh', 'matplotlib', 'pyyaml', 'jupyter_bokeh'],
     packages=['bokehlab'],
     classifiers=[
         "Programming Language :: Python :: 3",
