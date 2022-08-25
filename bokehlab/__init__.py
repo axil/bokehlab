@@ -1,13 +1,13 @@
 import math
 from itertools import cycle
 from datetime import datetime
-from pathlib import Path
 
 import yaml
 import numpy as np
 import pandas as pd
 from jupyter_bokeh import BokehModel
 import ipywidgets as ipw
+from IPython.display import display
 
 #USE_TORCH = 0
 
@@ -19,7 +19,7 @@ from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataT
     DatetimeAxis, Row, Column, GridBox
 from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
-
+from .config import CONFIG, CONFIG_LOADED, load_config, RESOURCE_MODES
 
 #if USE_TORCH:
 #    import torch
@@ -33,48 +33,10 @@ import matplotlib.cm as cm
 
 __version__ = '0.2.3'
 
-CONFIG = {
-    'figure': {
-        'width': 'max',
-        'height': 300,
-        'active_scroll': 'wheel_zoom',
-    },
-#    'imshow': {
-#        'aspect_ratio': 1,
-#    },
-    'resources': { 
-        'mode': 'cdn',
-    },
-    'output': {
-        'mode': 'notebook',
-    },
-}
-CONFIG_SECTIONS = 'figure', 'imshow', 'resources', 'output', 'line', 'circle'
-#FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
-CONFIG_DIR = Path('~/.bokeh').expanduser()
-CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
-CONFIG_LOADED = False
-DEBUG_CONFIG = False
-DEBUG_RESOURCES = False
-RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
-SIZING_METHOD = 0
+SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
-def load_config():
-    global CONFIG_LOADED
-    if not CONFIG_LOADED:
-        if CONFIG_FILE.exists():
-            on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
-            for k, v in on_disk.items():
-                if isinstance(v, dict) and k in CONFIG:
-                    for kk, vv in v.items():
-                        CONFIG[k][kk] = vv
-                else:
-                    CONFIG[k] = v
-            CONFIG_LOADED = True
-            if DEBUG_CONFIG:
-                print('config loaded')
-    elif DEBUG_CONFIG:
-        print('config already loaded')
+DEBUG_RESOURCES = 1#False
+DEBUG_OUTPUT = 1#False
 
 def load(resources=None):
     """
@@ -96,6 +58,8 @@ def load(resources=None):
         if DEBUG_RESOURCES:
             print(f'{resources} mode')
         mode = CONFIG.get('output', {}).get('mode', 'notebook')
+        if DEBUG_OUTPUT:
+            print(f'{mode} mode')
         if mode == 'notebook':
             output_notebook(res)
         elif mode == 'file':
@@ -173,8 +137,15 @@ def expand_aliases(kw):
         else:
             kw['toolbar_location'] = kw.pop('toolbar_loc')
 
-if SIZING_METHOD == 1:
-    def process_max_size(kwargs):
+def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridplot can only do 'sizing_mode'
+    if sizing_method == 'policies':
+        if kwargs.get('width') == 'max':
+            del kwargs['width']
+            kwargs['width_policy'] = 'max'
+        elif kwargs.get('height') == 'max':
+            del kwargs['height']
+            kwargs['height_policy'] = 'max'
+    elif sizing_method == 'sizing_mode':
         if kwargs.get('width') == 'max' and kwargs.get('height') == 'max':
             del kwargs['width']
             del kwargs['height']
@@ -185,14 +156,8 @@ if SIZING_METHOD == 1:
         elif kwargs.get('height') == 'max':
             del kwargs['height']
             kwargs['sizing_mode'] = 'stretch_height'
-else:
-    def process_max_size(kwargs):
-        if kwargs.get('width') == 'max':
-            del kwargs['width']
-            kwargs['width_policy'] = 'max'
-        elif kwargs.get('height') == 'max':
-            del kwargs['height']
-            kwargs['height_policy'] = 'max'
+    else:
+        raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
 class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
@@ -593,6 +558,9 @@ class BokehWidget(BokehModel):
         self._model.on_event(*args, **kwargs)
         self.render_bundle = self._model_to_traits(self._model)
         self._model._update_event_callbacks()
+
+    def display(self):
+        display(self)
 
 def check_dt(quartuples):
     res = None
@@ -1226,7 +1194,7 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
     if 'height' not in kwargs:
         if CONFIG.get('figure', {}).get('height', None) == 'max':
             kwargs['height'] = 'max'
-    process_max_size(kwargs)
+    process_max_size(kwargs, 'sizing_mode')
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):
 #            v = CONFIG['figure'].get(k)
@@ -1249,7 +1217,7 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.HBox(converted)
 
-def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active_drag=None, **kwargs):
+def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, **kwargs):
     args = [a.figure if isinstance(a, Plot) else a for a in args]
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if 'width' not in kwargs:
@@ -1258,7 +1226,7 @@ def vstack(*args, merge_tools=False, toolbar_location='right', wrap=True, active
     if 'height' not in kwargs:
         if CONFIG.get('figure', {}).get('height', None) == 'max':
             kwargs['height'] = 'max'
-    process_max_size(kwargs)
+    process_max_size(kwargs, 'sizing_mode')
 
     if all_bokeh:
 #        for k in ('width_policy', 'height_policy'):

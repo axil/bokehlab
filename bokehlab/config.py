@@ -1,17 +1,62 @@
 import os
 from collections import defaultdict
 from copy import deepcopy
+import textwrap
+from pathlib import Path
 
 import yaml
 from IPython.core.display import display, HTML
 
+CONFIG = {
+    'figure': {
+        'width': 'max',
+        'height': 300,
+        'active_scroll': 'wheel_zoom',
+    },
+#    'imshow': {
+#        'aspect_ratio': 1,
+#    },
+    'resources': { 
+        'mode': 'cdn',
+    },
+    'output': {
+        'mode': 'notebook',
+    },
+}
+CONFIG_DIR = Path('~/.bokeh').expanduser()
+CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
+CONFIG_LOADED = False
+CONFIG_SECTIONS = 'figure', 'imshow', 'resources', 'output', 'line', 'circle'
+#FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
+DEBUG_CONFIG = 1#False
+RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
+
+def load_config():
+    global CONFIG_LOADED
+    if not CONFIG_LOADED:
+        if CONFIG_FILE.exists():
+            on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
+            for k, v in on_disk.items():
+                if isinstance(v, dict) and k in CONFIG:
+                    for kk, vv in v.items():
+                        if kk not in CONFIG[k]:
+                            CONFIG[k][kk] = vv
+                else:
+                    CONFIG[k] = v
+            CONFIG_LOADED = True
+            if DEBUG_CONFIG:
+                print('config loaded')
+    elif DEBUG_CONFIG:
+        print('config already loaded')
 
 def parse_config_line(parts, CONFIG, config=None, verbose=True):
-    from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, CONFIG_SECTIONS, load_config, RESOURCE_MODES    ##
     if '-v' in parts or '--verbose' in parts:
         verbose = True
     for part in parts:
         if '=' not in part:
+            if '.' in part:
+                section, key = part.split('.', 1)
+                print(f'{part}=' + CONFIG.get(section, {}).get(key, 'missing'))
             continue
         k, v = part.split('=', 1)
         if len(v)>1 and v[0] == v[-1] == "'":
@@ -61,23 +106,29 @@ def read_config():
         on_disk = {}
     return on_disk
 
-def config_bokehlab(line, cell=None):
+def configure(line, cell=None):
     '''
-    Configure bokehlab. Syntax: 
+    Configures bokehlab. Syntax:
     
     1) %bokehlab_config [-g/--global] key=value [key1=value1 [...]]
-      -g or --global saves config to ~/.bokeh/bokehlab.yaml
+    without -g or --global configures currently active notebook
+    with -g or --global saves config to ~/.bokeh/bokehlab.yaml for future sessions
+
     For example, 
     %bokehlab_config figure.width=500 figure.height=200
 
     2) %bokehlab_config [-g/--global] -d/--delete key [key1 [...]]
-    deletes the corresponding keys
+    deletes the corresponding keys locally (default) or globally (if -g or --global is present)
 
-    3) %bokehlab_config without arguments displays current config
+    3) %bokehlab_config 
+    (without arguments) displays current config
 
-    4) %bokehlab --clear deletes ~/.bokeh/bokehlab.yaml
+    4) %bokehlab --clear 
+    deletes ~/.bokeh/bokehlab.yaml
+
+    5) %bokehlab -h/--help [key]
+    displays help for the specific key or this message if the key is not given
     '''
-    from bokehlab import CONFIG, CONFIG_DIR, CONFIG_FILE, CONFIG_SECTIONS, load_config, RESOURCE_MODES
     load_config()
     if cell is not None:
 #        print('got', line, cell)
@@ -96,6 +147,18 @@ def config_bokehlab(line, cell=None):
                 print(f'{k}={v!r}')
     else:
         parts = line.split()
+        if '-h' in parts or '--help' in parts:
+            for part in parts:
+                if part in ('-h', '--help'):
+                    pass
+                elif part == 'output.mode':
+                    print("Available output modes: 'notebook', 'file'. For 'file' mode you can specify filename by setting output.file")
+                    break
+                elif part == 'resources.mode':
+                    print('Available resource modes: ' + ', '.join(f'"{m}"' for m in RESOURCE_MODES))
+                    break
+            else:
+                print(textwrap.dedent(configure.__doc__.strip('\n')))
         if '--clear' in parts:
             if '--force' in parts or input('Are you sure you want to delete the configuration file (y/n)? ') == 'y':
                 os.unlink(CONFIG_FILE)
@@ -154,3 +217,4 @@ def config_bokehlab(line, cell=None):
                         on_disk[k] = v 
                 CONFIG_FILE.open('w').write(yaml.dump(on_disk))
                 print('Settings saved')
+

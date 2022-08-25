@@ -1,7 +1,6 @@
 from IPython.core.display import display, HTML
 from IPython.core.magic import register_line_magic, register_line_cell_magic
 
-
 @register_line_magic
 def bokehlab(line):
     """
@@ -49,8 +48,8 @@ def bokehlab_config(line, cell=None):
 
     4) %bokehlab --clear deletes ~/.bokeh/bokehlab.yaml
     '''
-    from bokehlab.config import config_bokehlab
-    config_bokehlab(line, cell)
+    from bokehlab.config import configure
+    configure(line, cell)
 
 @register_line_cell_magic
 def blc(line, cell=None):
