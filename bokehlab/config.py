@@ -26,9 +26,9 @@ CONFIG = {
 CONFIG_DIR = Path('~/.bokeh').expanduser()
 CONFIG_FILE = CONFIG_DIR / 'bokehlab.yaml'
 CONFIG_LOADED = False
-CONFIG_SECTIONS = 'figure', 'imshow', 'resources', 'output', 'line', 'circle'
+CONFIG_SECTIONS = 'figure', 'imshow', 'resources', 'output', 'line', 'circle', 'globals'
 #FIGURE_OPTIONS = set(CONFIG) - set('resources')  # all config keys except 'resources'
-DEBUG_CONFIG = 1#False
+DEBUG_CONFIG = False
 RESOURCE_MODES = ['cdn', 'inline', 'local', 'local-dev']
 
 def load_config():

@@ -20,6 +20,7 @@ from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataT
 from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
 from .config import CONFIG, CONFIG_LOADED, load_config, RESOURCE_MODES
+from .install_magic import install_magic
 
 #if USE_TORCH:
 #    import torch
@@ -35,8 +36,8 @@ __version__ = '0.2.3'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
-DEBUG_RESOURCES = 1#False
-DEBUG_OUTPUT = 1#False
+DEBUG_RESOURCES = False
+DEBUG_OUTPUT = False
 
 def load(resources=None):
     """
@@ -611,7 +612,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          x_label=None, y_label=None, 
          #get_handle=False, 
          get_source=False, get_src=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
-         flip_x_range=False, flip_y_range=False, stem=False, **kwargs):
+         flip_x_range=False, flip_y_range=False, stem=False, wrap=False, **kwargs):
     """
     The following parameters are passed to Figure if present:
         width, height, width_policy, height_policy, sizing_mode,
@@ -651,7 +652,10 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     figure_opts['x_axis_type'] = 'datetime'
             p = BokehlabFigure(**figure_opts)
             if not get_p:
-                FIGURES.append(p)
+                if wrap:
+                    FIGURES.append((p, 'wrap'))
+                else:
+                    FIGURES.append(p)
             figure_created = True
         else:
             p = FIGURES[-1]
@@ -979,7 +983,7 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
            width=None, height=None, x_range=None, y_range=None,
            grid=True, flipud=False, hover=False, padding=0.1, 
            merge_tools=True, link=True, toolbar_location='right', show_colorbar=False, # multiple image related
-           title=None, title_location=None, get_p=True,
+           title=None, title_location=None, get_p=False,
            get_ws=False, notebook_handle=False, **kwargs):
     if len(ims) > 1:
 #        if link:
@@ -1012,6 +1016,7 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
             return grid
         else:
             FIGURES.append(grid)
+            return
 
 #    if isinstance(ims[0], (list, tuple)):
 #        ims = ims[0]
@@ -1084,6 +1089,8 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
         p = BokehlabFigure(**kw)
         if title_location is not None:
             p.title.align = 'center'
+        if not get_p:
+            FIGURES.append(p)
 
 #    if padding is not None:            can be uncommented once the issue is resolved
 #        # p.x_range.range_padding = p.y_range.range_padding = padding
@@ -1127,6 +1134,8 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
 #            colormap = cm.get_cmap(palette)
 #            palette = [matplotlib.colors.rgb2hex(m) 
 #                       for m in colormap(np.arange(colormap.N))]
+            if palette is None:            
+                palette = 'Greys256'
             color_mapper = bm.LinearColorMapper(palette=palette, low=_min, high=_max)
         else:
             if im.shape[-1] == 3: # 3 is rgb; 4 means rgba already
@@ -1144,7 +1153,7 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
         else:
             kw.update(dict(y=[0], dh=[im.shape[0]]))
         source = ColumnDataSource(data=kw)
-        if color_mapper:
+        if color_mapper is not None:
             h = p.image(source=source, color_mapper=color_mapper)
         else:
             h = p.image_rgba(source=source)
@@ -1284,7 +1293,10 @@ class AutoShow(object):
         else:
 #            p = self.shell.user_ns.get('FIGURE', [])
             for p in FIGURES:
-                bp.show(p)
+                if isinstance(p, tuple):
+                    display(BokehWidget(p[0]))
+                else:
+                    bp.show(p)
             FIGURES.clear()
     post_run_cell.bokeh_plot_method = True
 
@@ -1306,17 +1318,23 @@ def register_callbacks(ip):
 def load_ipython_extension(ip):
     load()
     register_callbacks(ip)
-    ip.user_ns.update(dict(
+    mode = CONFIG.get('globals', {}).get('mode', 'normal')
+    if mode == 'none':
+        return
+    d = dict(
         Figure=BokehlabFigure, figure=figure,
-#        loglog_figure=loglog_figure,
         plot=plot, Plot=Plot, stem=stem, Stem=Stem, hist=hist, Hist=Hist,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
         Semilogx=Semilogx, Semilogy=Semilogy, Loglog=Loglog,
-#        xlabel=xlabel, ylabel=ylabel, xylabels=xylabels,
-        RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
         push_notebook=push_notebook, BokehWidget=BokehWidget,
-        bp=bp, bl=bl, imshow=imshow, Imshow=Imshow, show_df=show_df,
-        hstack=hstack, vstack=vstack))
+        imshow=imshow, Imshow=Imshow, show_df=show_df,
+        hstack=hstack, vstack=vstack)
+    if mode == 'all':
+        d.update(dict(
+            bp=bp, bl=bl, bm=bm,
+            RED=RED, GREEN=GREEN, BLUE=BLUE, ORANGE=ORANGE, BLACK=BLACK,
+        ))
+    ip.user_ns.update(d)
 
 def gen_plot_wrapper(method):
     class _plot_wrapper:
