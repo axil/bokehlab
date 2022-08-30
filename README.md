@@ -1,4 +1,4 @@
-# bokehlab
+# BokehLab
 
 Bolehlab is an interactive plotting library with the familiar matplotlib/matlab syntax.  
 Built upon [bokeh](https://bokeh.org/) visualization library. Works in both classic jupyter-notebook and JupyterLab.
