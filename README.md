@@ -1,7 +1,7 @@
 # BokehLab
 
 BokehLab is an interactive plotting library with the familiar matplotlib/matlab syntax.  
-Built upon the [Bokeh](https://bokeh.org/) visualization library. Works in both classic jupyter-notebook and JupyterLab.
+Built upon the [Bokeh](https://bokeh.org/) visualization library. Works with both classic Jupyter notebooks and JupyterLab.
 
 ## Installation: 
 
