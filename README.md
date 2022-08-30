@@ -131,6 +131,60 @@ Complete list of colormaps: [https://matplotlib.org/3.5.0/tutorials/colors/color
 
 See also a contour plot example in the bokeh gallery [page](https://docs.bokeh.org/en/latest/docs/gallery/image.html).
 
+## Location of the JavaScript code
+
+The Bokeh library consists of two parts: backend is written in Python, the frontend is in javascript. 
+
+By default, Bokehlab (just like Bokeh) will get the required BokehJs code from the internet, from cdn.bokeh.org. This mode is called 'cdn' (=content delivery network). Generally it is fine, except that it doesn't work offline.
+
+Another option is to bundle the javascript into the ipynb notebook:
+
+    %bokehlab inline
+
+It is also ok, except that the size of the ipynb file grows by ~6Mb. It would look reasonable if it made notebook work on a computer without Bokeh installed, but in reality the python part is also essential for the plots to work, so basically it is just a waste of disk space.
+Bokehlab introduces a third option: 
+
+    %bokehlab local
+
+It serves javascript files from the locally installed Bokeh library. It both works offline and does not take any extra space. The only issue with this mode is that it needs a one-shot setup:
+
+    pip install bokeh-resources
+    python -m bokeh-resources.install
+
+This mode can also be used in 'vanilla' Bokeh, see the instructions on github.
+
+## Configuring the defaults
+
+You can set the default size of the figure with %bokehlab_config magic command (or its shorter alias %blc): 
+
+    %blc width=500 height=200
+
+This size will apply to all figures in the current notebook. To make this change permanent, use -g (or --global flag):
+
+    %blc -g width=500 height=200
+
+It will save those values to ~/.bokeh/bokehlab.yaml and use them in the future Jupyter sessions.
+
+You can also make Bokehlab remember your preferred mode of loading the javascript half of the library, so instead of always writing `%bokehlab local` in every ipynb file can do
+
+    %blc -g resources=local
+
+and `%bokehlab` will use locally served resources from now on.
+
+Config is also capable or 'memorizing' the repeated arguments to any of the commands described above. For example, to tell Bokehlab to use thicker lines:
+   
+    %blc plot.line_width=2
+
+and all subsequent calls to plot will assume line_width argument to be 2 (pixels) instead of one (this feature is work-in-progress, not all options are configurable yet).
+
+To revert any configured option:
+
+    %blc -d plot.line_width
+
+A list of currently active settings is displayed with
+
+    %blc
+
 ## Comparison to bokeh
 
 Bokehlab is a thin wrapper over the excellent library `bokeh` primarily aimed at cutting down the amount of boilerplate code.
