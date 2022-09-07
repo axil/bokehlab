@@ -160,7 +160,7 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
     else:
         raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
-class BokehlabFigure(BokehFigure):
+class Figure(BokehFigure):
     __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
     __view_module__ = "bokeh.models.plots"
@@ -218,7 +218,7 @@ class BokehlabFigure(BokehFigure):
         return bp.show(self, notebook_handle=notebook_handle)
 
 def figure(width=None, height=None, **kwargs):
-    FIGURES.append(BokehlabFigure(width=width, height=height, **kwargs))
+    FIGURES.append(Figure(width=width, height=height, **kwargs))
 
 #def Plot(*args, **kwargs):
 #    kwargs['get_p'] = True
@@ -650,7 +650,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     figure_opts['x_axis_type'] = 'datetime'
-            p = BokehlabFigure(**figure_opts)
+            p = Figure(**figure_opts)
             if not get_p:
                 if wrap:
                     FIGURES.append((p, 'wrap'))
@@ -909,7 +909,7 @@ class Hist:
         if p is None:
             if not FIGURES:
                 kw = collect_figure_options(kwargs)
-                p = BokehlabFigure(**kw)
+                p = Figure(**kw)
                 if not get_p:
                     FIGURES.append(p)
             else:
@@ -1086,7 +1086,7 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
         if show_toolbar:
             kw['width'] += 30
 #        kw['width'], kw['height'] = calc_size(kw['width'], kw['height'], im.shape[1], im.shape[0], toolbar)
-        p = BokehlabFigure(**kw)
+        p = Figure(**kw)
         if title_location is not None:
             p.title.align = 'center'
         if not get_p:
@@ -1322,7 +1322,7 @@ def load_ipython_extension(ip):
     if mode == 'none':
         return
     d = dict(
-        Figure=BokehlabFigure, figure=figure,
+        Figure=Figure, figure=figure,
         plot=plot, Plot=Plot, stem=stem, Stem=Stem, hist=hist, Hist=Hist,
         semilogx=semilogx, semilogy=semilogy, loglog=loglog,
         Semilogx=Semilogx, Semilogy=Semilogy, Loglog=Loglog,
