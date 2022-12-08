@@ -678,7 +678,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             p.add_tools(HoverTool(tooltips=[('x', '@x{%F}'), ('y', '@y'), ('name', '$name')],
                         formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
         else:
-            p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y")]))
+            p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y"),('name', '$name')]))
 
     n = len(quintuples)
 
