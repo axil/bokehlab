@@ -1226,8 +1226,15 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
         converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
         return ipw.HBox(converted)
 
-def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, **kwargs):
+def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, link_x=False, link_y=False, **kwargs):
     args = [a.figure if isinstance(a, Plot) else a for a in args]
+    figures = [arg for arg in args if isinstance(arg, bl.LayoutDOM)]
+    if len(figures) > 1 and link_x:
+        for fig in figures[1:]:
+            fig.x_range = figures[0].x_range
+    if len(figures) > 1 and link_y:
+        for fig in figures[1:]:
+            fig.y_range = figures[0].y_range
     all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
     if 'width' not in kwargs:
         if CONFIG.get('figure', {}).get('width', None) == 'max':
