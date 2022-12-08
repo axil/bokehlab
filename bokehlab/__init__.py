@@ -32,7 +32,7 @@ from .install_magic import install_magic
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
-__version__ = '0.2.3'
+__version__ = '0.2.5'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
@@ -160,7 +160,7 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
     else:
         raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
-class Figure(BokehFigure):
+class BokehlabFigure(BokehFigure):
     __subtype__ = "BokehlabFigure"
     __view_model__ = "Plot"
     __view_module__ = "bokeh.models.plots"
@@ -218,7 +218,7 @@ class Figure(BokehFigure):
         return bp.show(self, notebook_handle=notebook_handle)
 
 def figure(width=None, height=None, **kwargs):
-    FIGURES.append(Figure(width=width, height=height, **kwargs))
+    FIGURES.append(BokehlabFigure(width=width, height=height, **kwargs))
 
 #def Plot(*args, **kwargs):
 #    kwargs['get_p'] = True
@@ -650,7 +650,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     figure_opts['x_axis_type'] = 'datetime'
-            p = Figure(**figure_opts)
+            p = BokehlabFigure(**figure_opts)
             if not (get_p or get_ps):
                 if wrap:
                     FIGURES.append((p, 'wrap'))
