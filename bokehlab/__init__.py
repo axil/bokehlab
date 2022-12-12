@@ -979,7 +979,7 @@ def mpl_cmap(name):
     return palette
     
 
-def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False, show_toolbar=True, 
+def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_axes=False, show_toolbar=True, 
            width=None, height=None, x_range=None, y_range=None,
            grid=True, flipud=False, hover=False, padding=0.1, 
            merge_tools=True, link=True, toolbar_location='right', show_colorbar=False, # multiple image related
@@ -996,7 +996,7 @@ def imshow(*ims, p=None, palette='Viridis256', autolevels=True, show_axes=False,
                 raise ValueError(f'len(title) = {len(title)} must be the same as the number of images = {len(ims)}')
         else:
             title = [None] * len(ims)
-        ps = [imshow(im, palette=palette, autolevels=autolevels, show_axes=show_axes, 
+        ps = [imshow(im, palette=palette, cmap=cmap, autolevels=autolevels, show_axes=show_axes, 
                      width=width, height=height, grid=grid, flipud=flipud, 
                      hover=hover, padding=padding, title=title[i], title_location=title_location,
                      show_toolbar=False if merge_tools else show_toolbar, 
