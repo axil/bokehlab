@@ -899,13 +899,13 @@ def loglog(*args, **kwargs):
 #    p.yaxis.axis_label = ylabel
 
 #def hist(x, nbins=30, width=None, height=None, get_p=False, get_ws=False, p=None, hover=False, **kwargs):
-def hist(x, bins=30, hover=False, get_p=False, p=None, **kwargs):
-    h = Hist(x, bins, hover=hover, get_p=get_p, **kwargs)
+def hist(x, bins=30, range=None, hover=False, get_p=False, p=None, **kwargs):
+    h = Hist(x, bins, range=range, hover=hover, get_p=get_p, **kwargs)
     if get_p:
         return h.figure
 
 class Hist:
-    def __init__(self, x, bins=30, get_p=True, get_ws=False, p=None, hover=False, **kwargs):
+    def __init__(self, x, bins=30, range=None, get_p=True, get_ws=False, p=None, hover=False, **kwargs):
         if p is None:
             if not FIGURES:
                 kw = collect_figure_options(kwargs)
@@ -914,7 +914,7 @@ class Hist:
                     FIGURES.append(p)
             else:
                 p = FIGURES[-1] 
-        values, edges = np.histogram(x, density=True, bins=bins)
+        values, edges = np.histogram(x, density=True, bins=bins, range=range)
         for k, v in CONFIG.get('segment', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
