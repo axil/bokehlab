@@ -12,3 +12,5 @@
 0.2.3  rewritten a large portion of the parser and tests
 0.2.4  capitalized versions of functions, lots of minor fixes
 0.2.5  old files cleanup
+0.2.6  bokeh<3 in requirements
+
