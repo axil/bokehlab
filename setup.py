@@ -7,14 +7,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="bokehlab",
-    version="0.2.6",
+    version="0.2.7",
     author='Lev Maximov',
     author_email='lev.maximov@gmail.com',
     url='https://github.com/axil/bokehlab',
     description="Interactive plotting with familiar syntax in Jupyter notebooks.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=['bokeh', 'matplotlib', 'pyyaml', 'jupyter_bokeh', 'pandas'],
+    install_requires=['bokeh<3', 'matplotlib', 'pyyaml', 'jupyter_bokeh', 'pandas'],
     packages=['bokehlab'],
     classifiers=[
         "Programming Language :: Python :: 3",

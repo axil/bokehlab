@@ -13,4 +13,5 @@
 0.2.4  capitalized versions of functions, lots of minor fixes
 0.2.5  old files cleanup
 0.2.6  bokeh<3 in requirements
+0.2.7  bokeh<3 in setup.py
 
