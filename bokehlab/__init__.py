@@ -1129,6 +1129,8 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
 #                im = np.zeros_like(im, dtype=np.uint8)
 #            else:
 #                im = ((im-_min)/(_max-_min)*255).astype(np.uint8)
+    elif np.issubdtype(im.dtype, bool):
+        _min, _max = 0, 1
     if im.ndim in (2, 3):
         if im.ndim == 2:
 #            colormap = cm.get_cmap(palette)
