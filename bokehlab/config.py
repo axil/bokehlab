@@ -39,13 +39,13 @@ def load_config():
             for k, v in on_disk.items():
                 if isinstance(v, dict) and k in CONFIG:
                     for kk, vv in v.items():
-                        if kk not in CONFIG[k]:
-                            CONFIG[k][kk] = vv
+#                        if kk not in CONFIG[k]:
+                        CONFIG[k][kk] = vv
                 else:
                     CONFIG[k] = v
             CONFIG_LOADED = True
             if DEBUG_CONFIG:
-                print('config loaded')
+                print(f'config loaded: {on_disk}')
     elif DEBUG_CONFIG:
         print('config already loaded')
 
