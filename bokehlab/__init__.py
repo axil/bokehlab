@@ -386,6 +386,11 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
                     y = [y]
                 else:                                # list of numpy arrays [np.array([1,2,3]), np.array([3,4,5])]      
                     pass
+            elif isinstance(y[0], pd.Series):       
+                if np.ndim(y[0]) == 0:               # list of pandas series [pd.Series([1,2,3]), pd.Series([4,5,6])]
+                    y = [s.values for s in y]
+                if x is None:
+                    x = [s.index for s in y]
             elif isinstance(y[0], str):              # list of pandas column names
                 if _y is not None:
                     raise TypeError('y of type str is only allowed as a keyword argument')
@@ -491,7 +496,7 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
             raise TypeError(f'Unsupported x[0] type: {type(x[0])}')
 
     elif isinstance(x, pd.Series):
-        x = [x.values]
+        x = [x.values]*n
 
     elif isinstance(x, str):
         if _x is not None:
