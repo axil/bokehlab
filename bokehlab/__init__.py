@@ -32,7 +32,7 @@ from .install_magic import install_magic
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
-__version__ = '0.2.7'
+__version__ = '0.2.8'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
