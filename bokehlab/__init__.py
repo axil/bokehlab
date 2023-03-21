@@ -602,7 +602,7 @@ def collect_figure_options(kw):
     for k in ('width', 'height', 'width_policy', 'height_policy', 'sizing_mode',
               'background_fill_color', 'x_range', 'y_range',
               'x_axis_location', 'y_axis_location', 
-              'title', 'title_location', 'legend_location', 'grid',
+              'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
               'toolbar_location', 'toolbar_loc', 'flip_x_range', 'flip_y_range',
               'legend_title'):
         if k in kw:
@@ -655,6 +655,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
                 else:
                     figure_opts['x_axis_type'] = 'datetime'
+            expand_aliases(figure_opts)
             p = Figure(**figure_opts)
             if not (get_p or get_ps):
                 if wrap:
@@ -786,7 +787,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 
     if isinstance(hline, (int, float, np.number)):
         hline = [hline]
-    if isinstance(hline, (list, tuple)):
+    if isinstance(hline, (list, tuple)) or isinstance(hline, np.ndarray) and hline.ndim==1:
         for y in hline:
             span = Span(location=y, dimension='width', line_color=hline_color, 
                         line_width=1, level='overlay')
@@ -796,7 +797,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
 
     if isinstance(vline, (int, float, np.number)):
         vline = [vline]
-    if isinstance(vline, (list, tuple)):
+    if isinstance(vline, (list, tuple)) or isinstance(vline, np.ndarray) and vline.ndim==1:
         for x in vline:
             span = Span(location=x, dimension='height', line_color=vline_color, 
                         line_width=1, level='overlay')
