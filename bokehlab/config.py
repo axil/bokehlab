@@ -97,7 +97,6 @@ def parse_config_line(parts, CONFIG, config=None, verbose=True):
             print(f'Unknown key: {k}')
 
 def read_config():
-    from bokehlab import CONFIG_DIR, CONFIG_FILE
     if not CONFIG_DIR.exists():
         CONFIG_DIR.mkdir()
     if CONFIG_FILE.exists():
@@ -159,6 +158,11 @@ def configure(line, cell=None):
                     break
             else:
                 print(textwrap.dedent(configure.__doc__.strip('\n')))
+        if '-g' in parts or '--global' in parts:
+            _global = True
+            print(f'Editing global settings in {CONFIG_FILE}')
+        else:
+            _global = False
         if '--clear' in parts:
             if '--force' in parts or input('Are you sure you want to delete the configuration file (y/n)? ') == 'y':
                 os.unlink(CONFIG_FILE)
@@ -168,8 +172,7 @@ def configure(line, cell=None):
             keys = []
             for part in parts:
                 if part in ('-g', '--global'):
-                    _global = True
-                    print(f'Editing global settings in {CONFIG_FILE}')
+                    pass
                 elif part in ('-d', '--delete'):
                     pass
                 else:
@@ -204,7 +207,6 @@ def configure(line, cell=None):
                 CONFIG_FILE.open('w').write(yaml.dump(on_disk))
                 print('Settings saved')
         else:
-            _global = False
             config = defaultdict(dict)   # items to save to global config
             parse_config_line(parts, CONFIG, config)
             if _global:
