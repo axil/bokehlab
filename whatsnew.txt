@@ -16,4 +16,5 @@
 0.2.7  bokeh<3 in setup.py
 0.2.8  plotting list of Series, config bugfix, fix_copy_paste improved
 0.2.9  frozen jupyter-bokeh to v3.0.4 in dependencies, global settings bugfix
+0.2.10 idx for hover, log scale and density=False for hisograms
 
