@@ -614,7 +614,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
-         x_label=None, y_label=None, 
+         x_label=None, y_label=None, idx=None,
          #get_handle=False, 
          get_source=False, get_src=False, get_sh=False, get_ps=False, get_ws=False, show=True, get_p=False,
          flip_x_range=False, flip_y_range=False, stem=False, wrap=False, **kwargs):
@@ -684,7 +684,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             p.add_tools(HoverTool(tooltips=[('x', '@x{%F}'), ('y', '@y'), ('name', '$name')],
                         formatters={'@x': 'datetime'}))#, '@y': lat_custom}))
         else:
-            p.add_tools(HoverTool(tooltips = [("x", "@x"),("y", "@y"),('name', '$name')]))
+            p.add_tools(HoverTool(tooltips = [('idx', "@idx"), ("x", "@x"),("y", "@y"),('name', '$name')]))
 
     n = len(quintuples)
 
@@ -703,9 +703,12 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         if len(x) and isinstance(x[0], str):
             raise ValueError('plotting strings in x axis is not supported')
         if stem:
-            source = ColumnDataSource(data=dict(x=x, y0=np.zeros(len(x)), y=y))
+            data = dict(x=x, y0=np.zeros(len(x)), y=y)
         else:
-            source = ColumnDataSource(data=dict(x=x, y=y))
+            data = dict(x=x, y=y)
+        if idx is not None:
+            data['idx'] = idx
+        source = ColumnDataSource(data=data)
         label_already_set = False
         if label_i:
             legend_not_empty = True
@@ -911,22 +914,32 @@ def hist(x, bins=30, range=None, hover=False, get_p=False, p=None, **kwargs):
         return h.figure
 
 class Hist:
-    def __init__(self, x, bins=30, range=None, get_p=True, get_ws=False, p=None, hover=False, **kwargs):
+    def __init__(self, x, bins=30, range=None, get_p=True, get_ws=False, p=None, hover=False, mode=None, **kwargs):
         if p is None:
             if not FIGURES:
                 kw = collect_figure_options(kwargs)
+                if mode == 'semilogx':
+                    kw['x_axis_type'] = 'log'
+                elif mode == 'semilogy':
+                    kw['y_axis_type'] = 'log'
+                elif mode == 'loglog':
+                    kw['x_axis_type'] = kw['y_axis_type'] = 'log'
                 p = Figure(**kw)
                 if not get_p:
                     FIGURES.append(p)
             else:
                 p = FIGURES[-1] 
-        values, edges = np.histogram(x, density=True, bins=bins, range=range)
+        values, edges = np.histogram(x, density=False, bins=bins, range=range)
         for k, v in CONFIG.get('segment', {}).items():
             if k not in kwargs:
                 kwargs[k] = v
         defaults = dict(fill_color="navy", line_color="white", alpha=0.5)
         defaults.update(kwargs)
-        source = ColumnDataSource(data=dict(top=values, bottom=np.zeros_like(values), 
+        if mode in ('semilogy', 'loglog'):
+            bottom=np.ones_like(values)*0.5
+        else:
+            bottom=np.zeros_like(values)
+        source = ColumnDataSource(data=dict(top=values, bottom=bottom, 
                                             left=edges[:-1], right=edges[1:]))
         p.quad(source=source, **defaults)
         self.histogram = values
@@ -1203,7 +1216,7 @@ def show_df(df, get_ws=False):
 #        bp.show(self)
 
 def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, link_x=False, link_y=False, **kwargs):
-    args = [a.figure if isinstance(a, Plot) else a for a in args]
+    args = [a.figure if isinstance(a, (Plot, Hist)) else a for a in args]
     figures = [arg for arg in args if isinstance(arg, bl.LayoutDOM)]
     if len(figures) > 1 and link_x:
         for fig in figures[1:]:
@@ -1242,7 +1255,7 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
         return ipw.HBox(converted)
 
 def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, link_x=False, link_y=False, **kwargs):
-    args = [a.figure if isinstance(a, Plot) else a for a in args]
+    args = [a.figure if isinstance(a, (Plot, Hist)) else a for a in args]
     figures = [arg for arg in args if isinstance(arg, bl.LayoutDOM)]
     if len(figures) > 1 and link_x:
         for fig in figures[1:]:
