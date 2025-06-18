@@ -153,7 +153,7 @@ Bokehlab introduces a third option: 
 It serves javascript files from the locally installed Bokeh library. It both works offline and does not take any extra space. The only issue with this mode is that it needs a one-shot setup:
 
     pip install bokeh-resources
-    python -m bokeh-resources.install
+    python -m bokeh_resources.install
 
 This mode can also be used in 'vanilla' Bokeh, see the instructions on github.
 
