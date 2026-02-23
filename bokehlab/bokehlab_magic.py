@@ -1,4 +1,4 @@
-from IPython.core.display import display, HTML
+from IPython.display import display, HTML
 from IPython.core.magic import register_line_magic, register_line_cell_magic
 
 @register_line_magic

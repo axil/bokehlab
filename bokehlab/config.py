@@ -5,7 +5,6 @@ import textwrap
 from pathlib import Path
 
 import yaml
-from IPython.core.display import display, HTML
 
 CONFIG = {
     'figure': {
