@@ -672,9 +672,9 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             if 'toolbar_location' in figure_opts:
                 p.toolbar_location = figure_opts['toolbar_location']
     if not figure_created:
-        if is_dt and not isinstance(p.xaxis[0], DatetimeAxis):
+        if is_dt is True and not isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot datetime x values on a non-datetime x axis')
-        elif not is_dt and isinstance(p.xaxis[0], DatetimeAxis):
+        elif is_dt is False and isinstance(p.xaxis[0], DatetimeAxis):
             raise ValueError('cannot plot non-datetime x values on a datetime x axis')
 
     if hover is not None:
