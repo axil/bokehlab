@@ -492,11 +492,21 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
                 x = [source[name].values for name in x]
             except:
                 raise 
+        elif isinstance(x[0], pd.Timestamp):
+            x = [pd.to_datetime(x).tz_localize(None)] * n
+        elif isinstance(x[0], datetime):
+            x = [x] * n
         else:
             raise TypeError(f'Unsupported x[0] type: {type(x[0])}')
 
     elif isinstance(x, pd.Series):
-        x = [x.values]*n
+        if pd.api.types.is_datetime64_any_dtype(x):
+            x = [x.dt.tz_localize(None).values]*n
+        else:
+            x = [x.values]*n
+
+    elif isinstance(x, pd.DatetimeIndex):
+        x = [x.tz_localize(None).values]*n
 
     elif isinstance(x, str):
         if _x is not None:
