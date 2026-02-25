@@ -469,6 +469,13 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
                 x = [x] * n
         elif isinstance(x[0], (int, float, np.number)):
             x = [x] * n
+        elif isinstance(x[0], pd.DatetimeIndex):
+            if len(x) != n:
+                if len(x) == 1:
+                    x = [x] * n
+                else:
+                    raise ValueError(f'Number of x arrays = {len(x)} must either match number of y arrays = {n} or be equal to one')
+            x = [idx.tz_localize(None) for idx in x]
         elif isinstance(x[0], (list, tuple, np.ndarray, pd.Index)):
             if len(x) == 1:
                 x *= n
