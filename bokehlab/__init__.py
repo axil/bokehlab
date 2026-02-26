@@ -805,7 +805,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 p.triangle(x='x', y='y', source=source, **kw)
         sources.append(source)
 
-    if isinstance(hline, (int, float, np.number)):
+    if isinstance(hline, (int, float, np.number, datetime, pd.Timestamp)):
         hline = [hline]
     if isinstance(hline, (list, tuple)) or isinstance(hline, np.ndarray) and hline.ndim==1:
         for y in hline:
@@ -815,7 +815,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
     elif hline is not None:
         raise TypeError(f'Unsupported type of hline: {type(hline)}')
 
-    if isinstance(vline, (int, float, np.number)):
+    if isinstance(vline, (int, float, np.number, datetime, pd.Timestamp)):
         vline = [vline]
     if isinstance(vline, (list, tuple)) or isinstance(vline, np.ndarray) and vline.ndim==1:
         for x in vline:
