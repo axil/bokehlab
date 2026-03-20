@@ -621,13 +621,13 @@ def collect_figure_options(kw):
               'x_axis_location', 'y_axis_location', 
               'title', 'title_location', 'legend_location', 'legend_loc', 'grid',
               'toolbar_location', 'toolbar_loc', 'flip_x_range', 'flip_y_range',
-              'legend_title'):
+              'legend_title', 'hover'):
         if k in kw:
             res[k] = kw.pop(k)
     return res
 
 def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=None, alpha=None,
-         p=None, hover=False, mode='plot', source=None,
+         p=None, hover=None, mode='plot', source=None,
          marker_size=None, fill_color=None, marker_line_width=None, 
          marker_color=None, line_color=None,
          hline=None, vline=None, hline_color='pink', vline_color='pink', 
@@ -667,6 +667,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 figure_opts['y_axis_type'] = 'log'
             elif mode == 'loglog':
                 figure_opts['x_axis_type'] = figure_opts['y_axis_type'] = 'log'
+            if hover is not None:
+                figure_opts['hover'] = hover
             if is_dt:
                 if 'x_axis_type' in figure_opts and figure_opts['x_axis_type'] is not None:
                     raise ValueError('datetime x values is incompatible with "%s"' % mode)
@@ -746,7 +748,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             kw = kwargs.copy()
             if not hide_legend and label_i is not None:
                 kw['legend_label'] = label_i
-            if hover:
+            if p._hover:
                 kw['name'] = label_i
             if line_width_i:
                 kw['line_width'] = line_width_i
@@ -774,7 +776,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
             label_j = None if label_already_set else label_i
             if not hide_legend and label_j is not None:
                 kw['legend_label'] = label_j
-            if hover:
+            if p._hover:
                 kw['name'] = label_i
             if marker_style != '.' and marker_size is None:
                 marker_size = 7
@@ -925,13 +927,13 @@ def loglog(*args, **kwargs):
 #    p.yaxis.axis_label = ylabel
 
 #def hist(x, nbins=30, width=None, height=None, get_p=False, get_ws=False, p=None, hover=False, **kwargs):
-def hist(x, bins=30, range=None, hover=False, get_p=False, p=None, **kwargs):
+def hist(x, bins=30, range=None, hover=None, get_p=False, p=None, **kwargs):
     h = Hist(x, bins, range=range, hover=hover, get_p=get_p, **kwargs)
     if get_p:
         return h.figure
 
 class Hist:
-    def __init__(self, x, bins=30, range=None, get_p=True, get_ws=False, p=None, hover=False, mode=None, **kwargs):
+    def __init__(self, x, bins=30, range=None, get_p=True, get_ws=False, p=None, hover=None, mode=None, **kwargs):
         if p is None:
             if not FIGURES:
                 kw = collect_figure_options(kwargs)

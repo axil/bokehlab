@@ -25,3 +25,7 @@ plot(ts, val)
 
 df = pd.DataFrame({'val': val}, index=times_ny)
 plot(df.val)
+
+# new hover test
+plot([1,2,3], [1,4,9], label='aaa', hover=True)
+plot([1,2,3], [1,8,27], label='bbb')    # label should appear in hover popup
