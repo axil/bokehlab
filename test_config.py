@@ -7,53 +7,53 @@ import bokehlab
 def test1():
     # test writing config
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
         bokehlab_config("-g resources='inline'")
 
-        assert bokehlab.CONFIG_FILE.open().read() == yaml.dump({'resources': 'inline'})
+        assert bokehlab.config.CONFIG_FILE.open().read() == yaml.dump({'resources': {'mode': 'inline'}})
         print('ok')
 
 def test1a():
     # test writing config - complex key
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
         bokehlab_config('-g figure.width=200')
 
-        assert bokehlab.CONFIG_FILE.open().read() == yaml.dump({'figure': {'width': 200}})
+        assert bokehlab.config.CONFIG_FILE.open().read() == yaml.dump({'figure': {'width': 200}})
         print('ok')
 
 def test2():
     # test reading config
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab import load_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'resources': {'mode': 'inline'}}))
         
         load_config()
 
-        assert bokehlab.CONFIG['resources'] == 'inline'
+        assert bokehlab.CONFIG['resources']['mode'] == 'inline'
         print('ok')
 
 def test2a():
     # test reading config - complex key
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
         
         load_config()
 
@@ -65,7 +65,7 @@ def test3():
     from bokehlab.bokehlab_magic import bokehlab_config
 
     bokehlab_config("resources='inline'")
-    assert bokehlab.CONFIG['resources'] == 'inline'
+    assert bokehlab.CONFIG['resources']['mode'] == 'inline'
 
     print('ok')
 
@@ -81,27 +81,27 @@ def test3a():
 def test4():
     # test overriding saved config
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'resources': {'mode': 'inline'}}))
         
         bokehlab_config("resources='local'")
 
-        assert bokehlab.CONFIG['resources'] == 'local'
+        assert bokehlab.CONFIG['resources']['mode'] == 'local'
         print('ok')
 
 def test4a():
     # test overriding saved config - complex key
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
         
         bokehlab_config('figure.width=300')
 
@@ -111,12 +111,12 @@ def test4a():
 def test5():
     # test deleting a key
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
         
         bokehlab_config('-d resources')
 
@@ -127,12 +127,12 @@ def test5():
 def test5a():
     # test deleting a complex key
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({
             'figure': {'width': 200, 'height': 100}}))
         
         bokehlab_config('-d figure.width')
@@ -144,16 +144,16 @@ def test5a():
 def test6():
     # test deleting a key in config file
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'resources': 'inline'}))
         
         bokehlab_config('-g -d resources')
 
-        on_disk = yaml.load(bokehlab.CONFIG_FILE.open().read())
+        on_disk = yaml.load(bokehlab.config.CONFIG_FILE.open().read())
         assert 'resources' not in on_disk.get('figure', {})
 
         print('ok')
@@ -161,17 +161,17 @@ def test6():
 def test6a():
     # test deleting a complex key in config file
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab.bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({
             'figure': {'width': 200, 'height': 100}}))
         
         bokehlab_config('-g -d figure.width')
 
-        on_disk = yaml.load(bokehlab.CONFIG_FILE.open().read())
+        on_disk = yaml.load(bokehlab.config.CONFIG_FILE.open().read())
         assert 'width' not in on_disk.get('figure', {})
 
         print('ok')
@@ -180,16 +180,16 @@ def test6a():
 def test7():
     # test overriding saved config
     with TemporaryDirectory() as td:
-        bokehlab.CONFIG_DIR = Path(td)
-        bokehlab.CONFIG_FILE = Path(td)/'bokehlab.yaml'
+        bokehlab.config.CONFIG_DIR = Path(td)
+        bokehlab.config.CONFIG_FILE = Path(td)/'bokehlab.yaml'
 
         from bokehlab_magic import bokehlab_config
 
-        bokehlab.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
+        bokehlab.config.CONFIG_FILE.open('w').write(yaml.dump({'figure': {'width': 200}}))
         
         bokehlab_config('--clear --force')
 
-        assert not os.path.exists(bokehlab.CONFIG_FILE)
+        assert not os.path.exists(bokehlab.config.CONFIG_FILE)
 
         print('ok')
 

@@ -75,7 +75,7 @@ def parse_config_line(parts, CONFIG, config=None, verbose=True):
         if k in ('height', 'width'):
             k = 'figure.' + k
         if k == 'resources':
-            k = 'resources.mode' + k
+            k = 'resources.mode'
         if verbose:
             print(k, '=', repr(v))
         if '.' in k:
@@ -167,7 +167,6 @@ def configure(line, cell=None):
                 os.unlink(CONFIG_FILE)
                 print('Config file deleted')
         elif '-d' in parts or '--delete' in parts:
-            _global = False
             keys = []
             for part in parts:
                 if part in ('-g', '--global'):

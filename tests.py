@@ -1,9 +1,8 @@
 import re
 import sys
-from itertools import cycle
 import numpy as np
 import pandas as pd
-from bokehlab import parse, plot, AUTOCOLOR_PALETTE
+from bokehlab import parse, plot
 
 def compare(a, b):
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
@@ -42,6 +41,12 @@ def test_parse_arr(x, x1, y, y1):
     test(parse(x, y, '.-'), [(x, y, '.-', 'a', None)])
     test(parse(x, y, '.-', 'g'), [(x, y, '.-', 'g', None)])
     test(parse(x, y, '.-', 'g', label='y'), [(x, y, '.-', 'g', 'y')])
+
+    test(parse(y, '.-g'), [(x0, y, '.-', 'g', None)])
+    test(parse(x, y, '.-g'), [(x, y, '.-', 'g', None)])
+    test(parse(x, [y, y1], '.-bg'), [(x, y, '.-', 'b', None), (x, y1, '.-', 'g', None)])
+    test(parse(x, [y, y1], '.-g'), [(x, y, '.-', 'g', None), (x, y1, '.-', 'g', None)])
+    test(parse(x, y, '.-g', 'r'), [(x, y, '.-', 'r', None)])
     
     test(parse(x, y, style='.-'), [(x, y, '.-', 'a', None)])
     test(parse(x, y, color='g'), [(x, y, '-', 'g', None)])
@@ -130,14 +135,11 @@ def test_parse_dicts():
     print()
 
 def test_exceptions_1():
-#    FIGURE.clear()
-    AUTOCOLOR.clear()
-    AUTOCOLOR.append(cycle(AUTOCOLOR_PALETTE))
     import pytest
     with pytest.raises(ValueError):
         plot([[1,2,3],[4,5,6]], [[1,2,3],[4,5,6],[7,8,9]])
     with pytest.raises(ValueError, match='length of label = 1 must match the number of plots = 2'):
-        plot([[1,2,3],[4,5,6]], label='y')
+        plot([[1,2,3],[4,5,6]], label=['y'])
     with pytest.raises(ValueError, match=re.escape('len(alpha)=2 does not match len(y)=1')):
         plot([1,2,3], [-1,-2,-3], alpha=[0.1, 0.7])
 

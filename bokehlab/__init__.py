@@ -1,4 +1,6 @@
 import math
+import re
+import warnings
 from itertools import cycle
 from datetime import datetime
 
@@ -12,13 +14,14 @@ from IPython.display import display
 #USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.plotting.figure import Figure as BokehFigure
+from bokeh.plotting import figure as BokehFigure
 import bokeh.layouts as bl
 import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
     DatetimeAxis, Row, Column, GridBox
 from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
+from bokeh.util.warnings import BokehUserWarning
 from .config import CONFIG, CONFIG_LOADED, load_config, RESOURCE_MODES
 from .install_magic import install_magic
 
@@ -30,9 +33,8 @@ from .install_magic import install_magic
 #            pass
 
 import matplotlib       # for imshow palette
-import matplotlib.cm as cm
 
-__version__ = '0.2.10'
+__version__ = '0.3.0'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
@@ -121,7 +123,10 @@ C10 = C20[:10]                  # AB, consecutive
 
 AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 
-bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow reload_ext
+# The Figure subclass below re-registers the qualified model name "Figure",
+# which bokeh 3 flags with a BokehUserWarning on import and on reload_ext.
+warnings.filterwarnings('ignore', category=BokehUserWarning,
+                        message='Duplicate qualified model definition')
 
 class Missing:
     pass
@@ -161,9 +166,8 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
         raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
 class Figure(BokehFigure):
-    __subtype__ = "BokehlabFigure"
-    __view_model__ = "Plot"
-    __view_module__ = "bokeh.models.plots"
+    __view_model__ = "Figure"
+    __view_module__ = "bokeh.plotting._figure"
 
     def __init__(self, width=None, height=None, *args, **kwargs):
         if width is not None:
@@ -185,10 +189,6 @@ class Figure(BokehFigure):
             kwargs['x_axis_label'] = kwargs.pop('x_label')
         if 'y_label' in kwargs:
             kwargs['y_axis_label'] = kwargs.pop('y_label')
-        if 'width' in kwargs:
-            kwargs['plot_width'] = kwargs.pop('width')
-        if 'height' in kwargs:
-            kwargs['plot_height'] = kwargs.pop('height')
         grid = kwargs.pop('grid', True)
         flip_x_range = kwargs.pop('flip_x_range', False)
         flip_y_range = kwargs.pop('flip_y_range', False)
@@ -529,6 +529,15 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
         raise TypeError(f'Unsupported x type: {type(x)}')
 
     
+    if isinstance(style, str):
+        # split off embedded color letters, e.g. '.-bg' -> style='.-', color=['b', 'g']
+        head, rest = (style[0], style[1:]) if style[:1] in MARKER_STYLES else ('', style)
+        embedded = re.sub('[^a-z]', '', rest)
+        if embedded:
+            style = head + re.sub('[a-z]', '', rest)
+            if color is None:
+                color = list(embedded) if len(embedded) > 1 else embedded
+
     style = broadcast_str(style, n, default_style, 'style')
     color = broadcast_str(color, n, 'a', 'color')
     
@@ -778,8 +787,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 kw['legend_label'] = label_j
             if p._hover:
                 kw['name'] = label_i
-            if marker_style != '.' and marker_size is None:
-                marker_size = 7
+            if marker_size is None:
+                marker_size = 4 if marker_style == '.' else 7
             if marker_size:
                 kw['size'] = marker_size
             if marker_style == 'o':
@@ -795,16 +804,14 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 color = marker_color
             if color:
                 kw['color'] = color
-            if marker_style == '.':
-                p.circle(x='x', y='y', source=source, **kw)
-            elif marker_style == 'o':
-                p.circle(x='x', y='y', source=source, **kw)
+            if marker_style in '.o':
+                p.scatter(x='x', y='y', marker='circle', source=source, **kw)
             elif marker_style == '*':
-                p.asterisk(x='x', y='y', source=source, **kw)
+                p.scatter(x='x', y='y', marker='asterisk', source=source, **kw)
             elif marker_style in '^v<>':
                 if marker_style in ANGLES:
                     kw['angle'] = ANGLES[marker_style]
-                p.triangle(x='x', y='y', source=source, **kw)
+                p.scatter(x='x', y='y', marker='triangle', source=source, **kw)
         sources.append(source)
 
     if isinstance(hline, (int, float, np.number, datetime, pd.Timestamp)):
@@ -1011,7 +1018,7 @@ def old_calc_size(width, height, im_width, im_height, toolbar):
 #    return width, height
 
 def mpl_cmap(name):
-    colormap = cm.get_cmap(name)
+    colormap = matplotlib.colormaps[name]
     palette = [matplotlib.colors.rgb2hex(m) 
                 for m in colormap(np.arange(colormap.N))]
     return palette
