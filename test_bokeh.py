@@ -8,7 +8,7 @@ from bokeh import events
 from bokeh.core.validation import check_integrity
 from bokeh.document import Document
 from bokeh.embed import file_html
-from bokeh.models import DatetimeAxis, GridPlot, LogScale, Scatter, Span
+from bokeh.models import DatetimeAxis, GridPlot, Line, LogScale, Scatter, Span
 from bokeh.plotting import figure as NativeFigure
 from bokeh.resources import INLINE
 from IPython.core.interactiveshell import InteractiveShell
@@ -43,6 +43,44 @@ def test_markers(style, marker):
     if style == "o":
         assert glyph.fill_color == "white"
     assert len(p.legend[0].items) == 1
+    assert_serializable(p)
+
+
+@pytest.mark.parametrize("style, expected_style, expected_color", [
+    (".-g", ".-", "g"),
+    (".-bg", ".-", ["b", "g"]),
+    (".-O", ".-", "O"),
+])
+def test_embedded_style_colors(style, expected_style, expected_color):
+    y = [[1, 2], [2, 3]] if isinstance(expected_color, list) else [1, 2]
+    parsed = bl.parse(y, style)
+    assert [row[2] for row in parsed] == [expected_style] * len(parsed)
+    assert [row[3] for row in parsed] == (
+        expected_color if isinstance(expected_color, list)
+        else [expected_color] * len(parsed)
+    )
+
+
+def test_explicit_color_overrides_embedded_style_color():
+    parsed = bl.parse([1, 2], ".-g", color="r")
+    assert parsed[0][2:] == (".-", "r", None)
+
+
+def test_keyword_style_colors_reach_plot_glyphs():
+    parsed = bl.parse([[1, 2], [2, 3]], style=".-bg")
+    assert [row[2:] for row in parsed] == [
+        (".-", "b", None), (".-", "g", None),
+    ]
+    p = bl.plot([[1, 2], [2, 3]], style=".-bg", get_p=True)
+    line_colors = [r.glyph.line_color for r in p.renderers if isinstance(r.glyph, Line)]
+    assert line_colors == [bl.BLUE, bl.GREEN]
+
+
+@pytest.mark.parametrize("marker_size, expected_size", [(None, 4), (11, 11)])
+def test_dot_marker_size_default_and_override(marker_size, expected_size):
+    p = bl.plot([1, 2], ".", marker_size=marker_size, get_p=True)
+    assert isinstance(p.renderers[0].glyph, Scatter)
+    assert p.renderers[0].glyph.size == expected_size
     assert_serializable(p)
 
 

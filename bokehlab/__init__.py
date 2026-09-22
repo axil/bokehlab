@@ -78,7 +78,7 @@ GREEN = "#2ca02c"
 ORANGE = '#ff7f0e'
 RED = '#d62728'
 BLACK = '#000000'
-COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'r': RED, 'k': BLACK}
+COLORS = {'b': BLUE, 'g': GREEN, 'o': ORANGE, 'O': ORANGE, 'r': RED, 'k': BLACK}
 
 #def get_color(c):
 #    return "#1f77b4"
@@ -326,6 +326,27 @@ def broadcast_num(v, n, default, name):
             raise ValueError(f'len({name})={len(v)} does not match len(y)={n}')
     return v
            
+def split_style_color(style):
+    """Separate a recognized trailing color code from a plot style string."""
+    if not isinstance(style, str) or not style:
+        return style, None
+
+    marker = ''
+    remainder = style
+    if remainder[0] in MARKER_STYLES:
+        marker, remainder = remainder[0], remainder[1:]
+
+    line_style = ''
+    for candidate in ('-.', '--', '-', ':'):
+        if remainder.startswith(candidate):
+            line_style, remainder = candidate, remainder[len(candidate):]
+            break
+
+    if remainder and all(code in COLORS for code in remainder):
+        color = remainder if len(remainder) == 1 else list(remainder)
+        return marker + line_style, color
+    return style, None
+
 def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None, default_style='-'):
     _x = _y = _style = _color = _label = None
     
@@ -354,6 +375,10 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
     style = choose(style, _style, 'style')
     color = choose(color, _color, 'color')
     label = choose(label, _label, 'label')
+
+    style, embedded_color = split_style_color(style)
+    if color is None:
+        color = embedded_color
     
     if isinstance(y, np.ndarray):
         if y.ndim == 1:
@@ -781,8 +806,8 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 kw['legend_label'] = label_j
             if p._hover:
                 kw['name'] = label_i
-            if marker_style != '.' and marker_size is None:
-                marker_size = 7
+            if marker_size is None:
+                marker_size = 4 if marker_style == '.' else 7
             if marker_size:
                 kw['size'] = marker_size
             if marker_style == 'o':
