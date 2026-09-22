@@ -4,3 +4,7 @@ build/
 dist/
 bokeh_plot.egg-info/
 \!.bat
+.venv*/
+__pycache__/
+.pytest_cache/
+*.egg-info/

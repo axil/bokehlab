@@ -15,7 +15,7 @@ CONFIG = {
 #    'imshow': {
 #        'aspect_ratio': 1,
 #    },
-    'resources': { 
+    'resources': {
         'mode': 'cdn',
     },
     'output': {
@@ -34,7 +34,7 @@ def load_config():
     global CONFIG_LOADED
     if not CONFIG_LOADED:
         if CONFIG_FILE.exists():
-            on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
+            on_disk = yaml.safe_load(CONFIG_FILE.read_text()) or {}
             for k, v in on_disk.items():
                 if isinstance(v, dict) and k in CONFIG:
                     for kk, vv in v.items():
@@ -55,7 +55,7 @@ def parse_config_line(parts, CONFIG, config=None, verbose=True):
         if '=' not in part:
             if '.' in part:
                 section, key = part.split('.', 1)
-                print(f'{part}=' + CONFIG.get(section, {}).get(key, 'missing'))
+                print(f'{part}={CONFIG.get(section, {}).get(key, "missing")}')
             continue
         k, v = part.split('=', 1)
         if len(v)>1 and v[0] == v[-1] == "'":
@@ -75,7 +75,7 @@ def parse_config_line(parts, CONFIG, config=None, verbose=True):
         if k in ('height', 'width'):
             k = 'figure.' + k
         if k == 'resources':
-            k = 'resources.mode' + k
+            k = 'resources.mode'
         if verbose:
             print(k, '=', repr(v))
         if '.' in k:
@@ -84,7 +84,7 @@ def parse_config_line(parts, CONFIG, config=None, verbose=True):
             else:
                 section, key = k.split('.', 1)
                 if section in CONFIG_SECTIONS:
-                    if section not in CONFIG: 
+                    if section not in CONFIG:
                         CONFIG[section] = {key: v}
                     else:
                         CONFIG[section][key] = v
@@ -99,7 +99,7 @@ def read_config():
     if not CONFIG_DIR.exists():
         CONFIG_DIR.mkdir()
     if CONFIG_FILE.exists():
-        on_disk = yaml.load(CONFIG_FILE.open().read(), yaml.SafeLoader)
+        on_disk = yaml.safe_load(CONFIG_FILE.read_text()) or {}
     else:
         on_disk = {}
     return on_disk
@@ -107,21 +107,21 @@ def read_config():
 def configure(line, cell=None):
     '''
     Configures bokehlab. Syntax:
-    
+
     1) %bokehlab_config [-g/--global] key=value [key1=value1 [...]]
     without -g or --global configures currently active notebook
     with -g or --global saves config to ~/.bokeh/bokehlab.yaml for future sessions
 
-    For example, 
+    For example,
     %bokehlab_config figure.width=500 figure.height=200
 
     2) %bokehlab_config [-g/--global] -d/--delete key [key1 [...]]
     deletes the corresponding keys locally (default) or globally (if -g or --global is present)
 
-    3) %bokehlab_config 
+    3) %bokehlab_config
     (without arguments) displays current config
 
-    4) %bokehlab --clear 
+    4) %bokehlab --clear
     deletes ~/.bokeh/bokehlab.yaml
 
     5) %bokehlab -h/--help [key]
@@ -167,7 +167,6 @@ def configure(line, cell=None):
                 os.unlink(CONFIG_FILE)
                 print('Config file deleted')
         elif '-d' in parts or '--delete' in parts:
-            _global = False
             keys = []
             for part in parts:
                 if part in ('-g', '--global'):
@@ -197,7 +196,7 @@ def configure(line, cell=None):
                 for part in keys:
                     if '.' in part:
                         section, key = part.split('.', 1)
-                        if section in CONFIG:
+                        if section in on_disk:
                             on_disk[section].pop(key, None)
                             if not on_disk[section]:
                                 del on_disk[section]
@@ -215,7 +214,7 @@ def configure(line, cell=None):
                         for kk, vv in v.items():
                             on_disk[k][kk] = vv
                     else:
-                        on_disk[k] = v 
+                        on_disk[k] = v
                 CONFIG_FILE.open('w').write(yaml.dump(on_disk))
                 print('Settings saved')
 

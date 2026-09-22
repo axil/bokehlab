@@ -12,11 +12,12 @@ from IPython.display import display
 #USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.plotting.figure import Figure as BokehFigure
+from bokeh.plotting import figure as BokehFigure
+from bokeh.core.has_props import Local
 import bokeh.layouts as bl
 import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
-    DatetimeAxis, Row, Column, GridBox
+    DatetimeAxis, Row, Column, GridBox, GridPlot, LayoutDOM
 from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
 from .config import CONFIG, CONFIG_LOADED, load_config, RESOURCE_MODES
@@ -121,8 +122,6 @@ C10 = C20[:10]                  # AB, consecutive
 
 AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 
-bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow reload_ext
-
 class Missing:
     pass
 
@@ -143,7 +142,7 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
         if kwargs.get('width') == 'max':
             del kwargs['width']
             kwargs['width_policy'] = 'max'
-        elif kwargs.get('height') == 'max':
+        if kwargs.get('height') == 'max':
             del kwargs['height']
             kwargs['height_policy'] = 'max'
     elif sizing_method == 'sizing_mode':
@@ -160,10 +159,9 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
     else:
         raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
-class Figure(BokehFigure):
-    __subtype__ = "BokehlabFigure"
-    __view_model__ = "Plot"
-    __view_module__ = "bokeh.models.plots"
+class Figure(BokehFigure, Local):
+    # Python-only specialization: serialize as the built-in Bokeh figure.
+    __qualified_model__ = BokehFigure.__qualified_model__
 
     def __init__(self, width=None, height=None, *args, **kwargs):
         if width is not None:
@@ -185,10 +183,6 @@ class Figure(BokehFigure):
             kwargs['x_axis_label'] = kwargs.pop('x_label')
         if 'y_label' in kwargs:
             kwargs['y_axis_label'] = kwargs.pop('y_label')
-        if 'width' in kwargs:
-            kwargs['plot_width'] = kwargs.pop('width')
-        if 'height' in kwargs:
-            kwargs['plot_height'] = kwargs.pop('height')
         grid = kwargs.pop('grid', True)
         flip_x_range = kwargs.pop('flip_x_range', False)
         flip_y_range = kwargs.pop('flip_y_range', False)
@@ -572,15 +566,24 @@ def parse(*args, x=None, y=None, style=None, color=None, label=None, source=None
 
 class BokehWidget(BokehModel):
 
+    def close(self):
+        # ipywidgets calls close again during finalization. jupyter_bokeh 4.1
+        # removes its document callback unconditionally, so guard repeated calls.
+        if not getattr(self, '_bokehlab_closed', False):
+            self._bokehlab_closed = True
+            super().close()
+
     def on_change(self, *args, **kwargs):
         self._model.on_change(*args, **kwargs)
-        self.render_bundle = self._model_to_traits(self._model)
-        self._model._update_event_callbacks()
+        self.update_from_model(self._model)
     
     def on_event(self, *args, **kwargs):
         self._model.on_event(*args, **kwargs)
-        self.render_bundle = self._model_to_traits(self._model)
-        self._model._update_event_callbacks()
+        # The widget has already attached the model to a Document. Register
+        # late subscriptions there as well, so frontend events reach Python.
+        for event in self._model.subscribed_events:
+            self._model.document.callbacks.subscribe(event, self._model)
+        self.update_from_model(self._model)
 
     def display(self):
         display(self)
@@ -676,7 +679,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                     figure_opts['x_axis_type'] = 'datetime'
             expand_aliases(figure_opts)
             p = Figure(**figure_opts)
-            if not (get_p or get_ps):
+            if not (get_p or get_ps or get_ws):
                 if wrap:
                     FIGURES.append((p, 'wrap'))
                 else:
@@ -795,16 +798,12 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 color = marker_color
             if color:
                 kw['color'] = color
-            if marker_style == '.':
-                p.circle(x='x', y='y', source=source, **kw)
-            elif marker_style == 'o':
-                p.circle(x='x', y='y', source=source, **kw)
-            elif marker_style == '*':
-                p.asterisk(x='x', y='y', source=source, **kw)
-            elif marker_style in '^v<>':
-                if marker_style in ANGLES:
-                    kw['angle'] = ANGLES[marker_style]
-                p.triangle(x='x', y='y', source=source, **kw)
+            marker = {'.': 'circle', 'o': 'circle', '*': 'asterisk',
+                      'x': 'x', '^': 'triangle', 'v': 'triangle',
+                      '<': 'triangle', '>': 'triangle'}[marker_style]
+            if marker_style in ANGLES:
+                kw['angle'] = ANGLES[marker_style]
+            p.scatter(x='x', y='y', source=source, marker=marker, **kw)
         sources.append(source)
 
     if isinstance(hline, (int, float, np.number, datetime, pd.Timestamp)):
@@ -1011,7 +1010,7 @@ def old_calc_size(width, height, im_width, im_height, toolbar):
 #    return width, height
 
 def mpl_cmap(name):
-    colormap = cm.get_cmap(name)
+    colormap = matplotlib.colormaps[name]
     palette = [matplotlib.colors.rgb2hex(m) 
                 for m in colormap(np.arange(colormap.N))]
     return palette
@@ -1079,6 +1078,8 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
 #                ps.append(bl.gridplot([ps_row], merge_tools=merge_tools, toolbar_location=toolbar_location))
 #        return bp.show(bl.column(ps))
 
+    if cmap is not None:
+        palette = mpl_cmap(cmap)
     im = ims[0]
     _padding = CONFIG.get('imshow', {}).get('padding', None)
     if _padding is not None:
@@ -1127,7 +1128,7 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
         p = Figure(**kw)
         if title_location is not None:
             p.title.align = 'center'
-        if not get_p:
+        if not (get_p or get_ws):
             FIGURES.append(p)
 
 #    if padding is not None:            can be uncommented once the issue is resolved
@@ -1236,14 +1237,14 @@ def show_df(df, get_ws=False):
 
 def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, link_x=False, link_y=False, **kwargs):
     args = [a.figure if isinstance(a, (Plot, Hist)) else a for a in args]
-    figures = [arg for arg in args if isinstance(arg, bl.LayoutDOM)]
+    figures = [arg for arg in args if isinstance(arg, LayoutDOM)]
     if len(figures) > 1 and link_x:
         for fig in figures[1:]:
             fig.x_range = figures[0].x_range
     if len(figures) > 1 and link_y:
         for fig in figures[1:]:
             fig.y_range = figures[0].y_range
-    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    all_bokeh = all(isinstance(arg, LayoutDOM) for arg in args)
     if 'width' not in kwargs:
         if CONFIG.get('figure', {}).get('width', None) == 'max':
             kwargs['width'] = 'max'
@@ -1270,19 +1271,19 @@ def hstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
     else:
         if merge_tools:
             raise ValueError('Can only merge tools if all arguments are Bokeh objects (not widgets)')
-        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
+        converted = [BokehWidget(arg) if isinstance(arg, LayoutDOM) else arg for arg in args]
         return ipw.HBox(converted)
 
 def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, active_drag=None, link_x=False, link_y=False, **kwargs):
     args = [a.figure if isinstance(a, (Plot, Hist)) else a for a in args]
-    figures = [arg for arg in args if isinstance(arg, bl.LayoutDOM)]
+    figures = [arg for arg in args if isinstance(arg, LayoutDOM)]
     if len(figures) > 1 and link_x:
         for fig in figures[1:]:
             fig.x_range = figures[0].x_range
     if len(figures) > 1 and link_y:
         for fig in figures[1:]:
             fig.y_range = figures[0].y_range
-    all_bokeh = all(isinstance(arg, bl.LayoutDOM) for arg in args)
+    all_bokeh = all(isinstance(arg, LayoutDOM) for arg in args)
     if 'width' not in kwargs:
         if CONFIG.get('figure', {}).get('width', None) == 'max':
             kwargs['width'] = 'max'
@@ -1316,7 +1317,7 @@ def vstack(*args, merge_tools=False, toolbar_location='right', wrap=False, activ
     else:
         if merge_tools:
             raise ValueError('Can only merge tools if all arguments are Bokeh objects (not widgets)')
-        converted = [BokehWidget(arg) if isinstance(arg, bl.LayoutDOM) else arg for arg in args]
+        converted = [BokehWidget(arg) if isinstance(arg, LayoutDOM) else arg for arg in args]
         return ipw.VBox(converted)
 
 class AutoShow(object):
@@ -1443,6 +1444,7 @@ BokehFigure._ipython_display_ = lambda self: bp.show(self)
 Row._ipython_display_ = lambda self: bp.show(self)
 Column._ipython_display_ = lambda self: bp.show(self)
 GridBox._ipython_display_ = lambda self: bp.show(self)
+GridPlot._ipython_display_ = lambda self: bp.show(self)
 
 def _show(self, notebook_handle=False):
     bp.show(self, notebook_handle=notebook_handle)
@@ -1450,6 +1452,7 @@ def _show(self, notebook_handle=False):
 BokehFigure.show = _show
 Row.show = _show
 Column.show = _show
+GridPlot.show = _show
 
 
 #elif __name__ == 'bokehlab':

@@ -15,7 +15,7 @@ def bokehlab(line):
         parts.remove('-v')
         verbose = True
     if '--verbose' in parts:
-        parts.remove('-v')
+        parts.remove('--verbose')
         verbose = True
     line = ' '.join(parts)
     if line in RESOURCE_MODES:
@@ -34,11 +34,11 @@ def bokehlab(line):
 @register_line_cell_magic
 def bokehlab_config(line, cell=None):
     '''
-    Configure bokehlab. Syntax: 
-    
+    Configure bokehlab. Syntax:
+
     1) %bokehlab_config [-g/--global] key=value [key1=value1 [...]]
       -g or --global saves config to ~/.bokeh/bokehlab.yaml
-    For example, 
+    For example,
     %bokehlab_config figure.width=500 figure.height=200
 
     2) %bokehlab_config [-g/--global] -d/--delete key [key1 [...]]

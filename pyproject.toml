@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bokehlab"
+version = "0.2.10"
+description = "Interactive plotting with familiar syntax in Jupyter notebooks."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{name = "Lev Maximov", email = "lev.maximov@gmail.com"}]
+keywords = ["bokeh", "jupyter", "notebook", "plot", "interactive"]
+dependencies = [
+    "bokeh>=3.10,<4", "jupyter_bokeh>=4.1,<5", "ipywidgets>=8,<9",
+    "ipython", "jupyter-core", "numpy", "pandas", "matplotlib>=3.5", "pyyaml",
+]
+
+[project.urls]
+Homepage = "https://github.com/axil/bokehlab"
+
+[tool.setuptools]
+packages = ["bokehlab"]
+
+[dependency-groups]
+dev = ["pytest", "build", "nbclient", "nbformat", "ipykernel"]
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "tests.py"]
+filterwarnings = ["error::bokeh.util.warnings.BokehDeprecationWarning"]

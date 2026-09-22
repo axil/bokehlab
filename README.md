@@ -5,7 +5,25 @@ Built upon the [Bokeh](https://bokeh.org/) visualization library. Works with bot
 
 ## Installation: 
 
-    pip install bokehlab
+This branch requires **Python 3.12 or newer**, **Bokeh 3.10.x**, and
+**jupyter_bokeh 4.1 or newer (4.x)**. Bokeh 2 is no longer supported.
+Install the upgraded library from this checkout:
+
+    python -m pip install .
+
+For JupyterLab 4 or Notebook 7, install the frontend in the same environment:
+
+    python -m pip install 'jupyterlab>=4,<5' 'notebook>=7,<8'
+
+Classic Notebook 6 is supported in a separate Python 3.12 environment:
+
+    python -m pip install . 'notebook==6.5.7' 'ipykernel==6.29.5' 'setuptools<81'
+    jupyter nbextension enable --py widgetsnbextension --sys-prefix
+    jupyter nbextension enable --py jupyter_bokeh --sys-prefix
+
+The setuptools constraint supplies the legacy `distutils` module used by
+Notebook 6. Use CDN or inline resources in modern Jupyter; local resource
+serving below is tested with classic Notebook 6.
 
 To load this extension in jupyter notebook (both classic jupyter and jupyter lab):
 
@@ -19,7 +37,7 @@ To make the short syntax working, either run
 
     python -m bokehlab.install_magic
 
-Or manually copy `bokelab_magic.py` from the distribution directory to `~\.ipython\profile_default\startup`.
+Or manually copy `bokehlab_magic.py` from the distribution directory to `~/.ipython/profile_default/startup`.
 
 ## Basic plotting:
 
@@ -145,17 +163,31 @@ Another option is to bundle the javascript into the ipynb notebook:
 
     %bokehlab inline
 
-It is also ok, except that the size of the ipynb file grows by ~6Mb. It would look reasonable if it made notebook work on a computer without Bokeh installed, but in reality the python part is also essential for the plots to work, so basically it is just a waste of disk space.
+Inline mode embeds the JavaScript in the notebook, increasing its size but
+allowing saved plots to be viewed offline. Running cells and Python callbacks
+still requires the Python environment.
 Bokehlab introduces a third option: 
 
     %bokehlab local
 
 It serves javascript files from the locally installed Bokeh library. It both works offline and does not take any extra space. The only issue with this mode is that it needs a one-shot setup:
 
-    pip install bokeh-resources
-    python -m bokeh_resources.install
+    python -m bokehlab.install_resources --sys-prefix
 
-This mode can also be used in 'vanilla' Bokeh, see the instructions on github.
+Run this command in the classic Notebook server environment, with the same
+Bokeh version as the kernel. It preserves the existing
+`/nbextensions/bokeh_resources/static/` URLs. Omit `--sys-prefix` for a user-level
+installation. Re-run it after upgrading Bokeh.
+
+The installer copies assets because current Tornado rejects the external
+symlinks made by the old `bokeh-resources` installer. It replaces an existing
+`static` symlink without modifying the installed Bokeh package. `%bokehlab
+local-dev` uses the unminified copies. Local serving is not claimed for Notebook
+7 or JupyterLab 4; use inline mode for offline plots there.
+
+Execute the resource-loading cell before plotting and allow BokehJS to finish
+loading, especially with CDN resources. The legacy
+`python -m bokehlab.fix_copy_paste` patch is obsolete and now changes no files.
 
 ## Configuring the defaults
 
@@ -196,3 +228,18 @@ Bokehlab is a thin wrapper over the excellent library `bokeh` primarily aimed at
 The following commands are equivalent:
 
 <img src="https://raw.githubusercontent.com/axil/bokehlab/master/img/bokehlab_vs_bokeh.png" width="800">
+
+## Development and validation
+
+Package metadata and runtime dependencies live in `pyproject.toml`.
+`requirements.txt` installs this project; `setup.py` is only a compatibility
+entry point. The development environment is reproducible with `uv.lock`:
+
+    uv sync --locked
+    uv run pytest -q
+    uv run python -m build
+
+Tests cover argument parsing, configuration, plotting, model serialization,
+widget callbacks, and execution of `demo.ipynb`. CI runs on Python 3.12 and 3.13.
+Browser tests exercise hover, pan, zoom, linked ranges, Python tap callbacks,
+and source updates; see [integration/README.md](integration/README.md).

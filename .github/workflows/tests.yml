@@ -1,0 +1,51 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --python ${{ matrix.python }}
+      - run: uv run --python ${{ matrix.python }} pytest -q
+      - run: uv build
+      - name: Verify installed wheel outside the source tree
+        run: |
+          uv venv /tmp/bokehlab-wheel --python ${{ matrix.python }}
+          uv pip install --python /tmp/bokehlab-wheel/bin/python dist/*.whl
+          cd /tmp
+          /tmp/bokehlab-wheel/bin/python -c "from bokehlab import plot; from bokeh.embed import file_html; from bokeh.resources import INLINE; assert file_html(plot([1, 2], '.-', get_p=True), INLINE)"
+
+  browser:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - frontend: lab
+            resources: inline
+          - frontend: notebook
+            resources: cdn
+          - frontend: classic
+            resources: inline
+          - frontend: classic
+            resources: local
+          - frontend: classic
+            resources: local-dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --python 3.12
+      - name: Install notebook frontend and browser test dependencies
+        run: |
+          if [ "${{ matrix.frontend }}" = classic ]; then
+            uv pip install 'notebook==6.5.7' 'ipykernel==6.29.5' 'setuptools<81' playwright
+          else
+            uv pip install 'jupyterlab>=4,<5' 'notebook>=7,<8' playwright
+          fi
+          .venv/bin/python -m playwright install --with-deps chromium
+      - run: .venv/bin/python integration/notebook_smoke.py --frontend ${{ matrix.frontend }} --resources ${{ matrix.resources }}
