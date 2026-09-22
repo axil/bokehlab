@@ -19,6 +19,10 @@ syntax, notebook behavior, and existing plotting features. The target is Bokeh
 
 - Migrate removed or changed Bokeh APIs while preserving plot, marker, axis,
   sizing, legend, image, histogram, layout, table, and data-return behavior.
+- Preserve documented inline style colors such as `'.-g'` and `'.-bg'`, with
+  explicit `color=` taking precedence; recognize uppercase `O` as orange.
+- Give `'.'` markers an explicit default size of 4 while honoring a supplied
+  `marker_size`.
 - Keep CDN, inline, local, and local-development resource modes. Support
   JupyterLab 4, Notebook 7, and classic Notebook 6; document frontend-specific
   setup and resource limitations.
@@ -29,7 +33,8 @@ syntax, notebook behavior, and existing plotting features. The target is Bokeh
 
 - Test plotting behavior and Bokeh model validation/serialization, plus notebook
   rendering and interactions: hover, pan, zoom, linked ranges, tap callbacks,
-  and source updates.
+  and source updates. Add regression coverage for embedded style colors,
+  explicit-color precedence, and default/overridden dot sizes.
 - Build source and wheel distributions and verify a clean installation.
 - Update the demo and user documentation for the supported Python, Bokeh, and
   Jupyter versions.

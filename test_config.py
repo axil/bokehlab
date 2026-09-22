@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 import yaml
 
@@ -16,6 +18,28 @@ def test_save_reload(setting, expected):
     config.CONFIG_LOADED = False
     config.load_config()
     assert config.CONFIG == expected
+
+
+def test_global_override_preserves_existing_settings():
+    defaults = deepcopy(config.CONFIG)
+    config.configure("-g figure.width=200 figure.height=250 resources='inline'")
+
+    config.configure("-g figure.width=400")
+
+    expected_saved = {
+        "figure": {"width": 400, "height": 250},
+        "resources": {"mode": "inline"},
+    }
+    assert yaml.safe_load(config.CONFIG_FILE.read_text()) == expected_saved
+
+    config.CONFIG.clear()
+    config.CONFIG.update(defaults)
+    config.CONFIG_LOADED = False
+    config.load_config()
+    assert config.CONFIG["figure"]["width"] == 400
+    assert config.CONFIG["figure"]["height"] == 250
+    assert config.CONFIG["figure"]["active_scroll"] == defaults["figure"]["active_scroll"]
+    assert config.CONFIG["resources"]["mode"] == "inline"
 
 
 def test_local_settings_do_not_write():
