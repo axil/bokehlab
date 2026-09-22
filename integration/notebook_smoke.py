@@ -176,25 +176,8 @@ def run(frontend, resources):
                     errors.clear()
                     page.locator(".jp-CodeCell .jp-InputArea-editor").first.click()
                     page.keyboard.press("Shift+Enter")
-                # BokehJS loads asynchronously. Wait for the public DataTable
-                # model, which is provided by the optional bokeh-tables bundle.
-                try:
-                    page.wait_for_function(
-                        "() => !!(window.Bokeh && Bokeh.DataTable)", timeout=60000)
-                except Exception:
-                    state = page.evaluate("""() => ({
-                        bokeh: typeof window.Bokeh,
-                        version: window.Bokeh?.version ?? null,
-                        dataTable: typeof window.Bokeh?.DataTable,
-                        require: typeof window.Bokeh?.require,
-                        cellStates: [...document.querySelectorAll('.jp-CodeCell')].map(cell => ({
-                            classes: cell.className,
-                            text: cell.innerText.slice(-500),
-                        })),
-                    })""")
-                    print(f"BokehJS readiness state: {state}", file=sys.stderr)
-                    print(f"Page errors: {errors}", file=sys.stderr)
-                    raise
+                # Bokeh's tables model is loaded on demand. Don't wait for its
+                # optional bundle here; the show_df cell below triggers it.
                 if frontend == "classic":
                     page.evaluate("Jupyter.notebook.execute_cells([1, 2, 3, 4])")
                 else:

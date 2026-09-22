@@ -30,5 +30,5 @@ checks require browser access to `https://cdn.bokeh.org`.
 
 Notebook 7 may emit an unrelated settings-schema error during frontend startup;
 the harness reports it, then checks for JavaScript errors from the point where
-notebook execution begins. Resource loading is completed before plotting cells
-execute, including the extra BokehJS bundle needed for data tables.
+notebook execution begins. Smoke cells run in order; the `show_df` cell exercises
+Bokeh's optional table-model bundle when that feature is used.
