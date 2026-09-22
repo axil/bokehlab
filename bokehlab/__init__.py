@@ -1,4 +1,5 @@
 import math
+import warnings
 from itertools import cycle
 from datetime import datetime
 
@@ -12,11 +13,12 @@ from IPython.display import display
 #USE_TORCH = 0
 
 import bokeh.plotting as bp
-from bokeh.plotting.figure import Figure as BokehFigure
+from bokeh.plotting import figure as BokehFigure
+from bokeh.core.has_props import _default_resolver
 import bokeh.layouts as bl
 import bokeh.models as bm
 from bokeh.models import HoverTool, ColumnDataSource, Span, CustomJSHover, DataTable, TableColumn, \
-    DatetimeAxis, Row, Column, GridBox
+    DatetimeAxis, Row, Column, GridBox, GridPlot
 from bokeh.io import output_notebook, output_file, reset_output, push_notebook
 from bokeh.resources import INLINE, CDN, Resources
 from .config import CONFIG, CONFIG_LOADED, load_config, RESOURCE_MODES
@@ -32,7 +34,7 @@ from .install_magic import install_magic
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
-__version__ = '0.2.10'
+__version__ = '0.3.0'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
@@ -121,8 +123,6 @@ C10 = C20[:10]                  # AB, consecutive
 
 AUTOCOLOR_PALETTE = C19         # BOGR..bogr..
 
-bm.Model.model_class_reverse_map.pop('BokehlabFigure', None)       # to allow reload_ext
-
 class Missing:
     pass
 
@@ -160,10 +160,13 @@ def process_max_size(kwargs, sizing_method=SIZING_METHOD):              # gridpl
     else:
         raise ValueError('Unknown sizing method. Must be either "policies" or "sizing_mode"')
 
+# Serialize as a regular bokeh Figure so that BokehJS knows how to render it.
+# Registering a second 'Figure' model triggers a harmless duplicate warning.
+warnings.filterwarnings('ignore', message="Duplicate qualified model definition of 'Figure'")
+
 class Figure(BokehFigure):
-    __subtype__ = "BokehlabFigure"
-    __view_model__ = "Plot"
-    __view_module__ = "bokeh.models.plots"
+    __view_model__ = "Figure"
+    __view_module__ = "bokeh.plotting._figure"
 
     def __init__(self, width=None, height=None, *args, **kwargs):
         if width is not None:
@@ -185,10 +188,6 @@ class Figure(BokehFigure):
             kwargs['x_axis_label'] = kwargs.pop('x_label')
         if 'y_label' in kwargs:
             kwargs['y_axis_label'] = kwargs.pop('y_label')
-        if 'width' in kwargs:
-            kwargs['plot_width'] = kwargs.pop('width')
-        if 'height' in kwargs:
-            kwargs['plot_height'] = kwargs.pop('height')
         grid = kwargs.pop('grid', True)
         flip_x_range = kwargs.pop('flip_x_range', False)
         flip_y_range = kwargs.pop('flip_y_range', False)
@@ -216,6 +215,9 @@ class Figure(BokehFigure):
 
     def show(self, notebook_handle=False):
         return bp.show(self, notebook_handle=notebook_handle)
+
+# keep bokeh's own figure class as the one used when deserializing 'Figure'
+_default_resolver._known_models['Figure'] = BokehFigure
 
 def figure(width=None, height=None, **kwargs):
     FIGURES.append(Figure(width=width, height=height, **kwargs))
@@ -574,12 +576,12 @@ class BokehWidget(BokehModel):
 
     def on_change(self, *args, **kwargs):
         self._model.on_change(*args, **kwargs)
-        self.render_bundle = self._model_to_traits(self._model)
+        self.update_from_model(self._model)
         self._model._update_event_callbacks()
     
     def on_event(self, *args, **kwargs):
         self._model.on_event(*args, **kwargs)
-        self.render_bundle = self._model_to_traits(self._model)
+        self.update_from_model(self._model)
         self._model._update_event_callbacks()
 
     def display(self):
@@ -795,16 +797,14 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
                 color = marker_color
             if color:
                 kw['color'] = color
-            if marker_style == '.':
-                p.circle(x='x', y='y', source=source, **kw)
-            elif marker_style == 'o':
-                p.circle(x='x', y='y', source=source, **kw)
+            if marker_style in '.o':
+                p.scatter(x='x', y='y', source=source, marker='circle', **kw)
             elif marker_style == '*':
-                p.asterisk(x='x', y='y', source=source, **kw)
+                p.scatter(x='x', y='y', source=source, marker='asterisk', **kw)
             elif marker_style in '^v<>':
                 if marker_style in ANGLES:
                     kw['angle'] = ANGLES[marker_style]
-                p.triangle(x='x', y='y', source=source, **kw)
+                p.scatter(x='x', y='y', source=source, marker='triangle', **kw)
         sources.append(source)
 
     if isinstance(hline, (int, float, np.number, datetime, pd.Timestamp)):
@@ -813,7 +813,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         for y in hline:
             span = Span(location=y, dimension='width', line_color=hline_color, 
                         line_width=1, level='overlay')
-            p.renderers.append(span)
+            p.add_layout(span)
     elif hline is not None:
         raise TypeError(f'Unsupported type of hline: {type(hline)}')
 
@@ -823,7 +823,7 @@ def _plot(*args, x=None, y=None, style=None, color=None, label=None, line_width=
         for x in vline:
             span = Span(location=x, dimension='height', line_color=vline_color, 
                         line_width=1, level='overlay')
-            p.renderers.append(span)
+            p.add_layout(span)
     elif vline is not None:
         raise TypeError(f'Unsupported type of vline: {type(vline)}')
 
@@ -1011,7 +1011,7 @@ def old_calc_size(width, height, im_width, im_height, toolbar):
 #    return width, height
 
 def mpl_cmap(name):
-    colormap = cm.get_cmap(name)
+    colormap = matplotlib.colormaps[name]
     palette = [matplotlib.colors.rgb2hex(m) 
                 for m in colormap(np.arange(colormap.N))]
     return palette
@@ -1443,6 +1443,7 @@ BokehFigure._ipython_display_ = lambda self: bp.show(self)
 Row._ipython_display_ = lambda self: bp.show(self)
 Column._ipython_display_ = lambda self: bp.show(self)
 GridBox._ipython_display_ = lambda self: bp.show(self)
+GridPlot._ipython_display_ = lambda self: bp.show(self)
 
 def _show(self, notebook_handle=False):
     bp.show(self, notebook_handle=notebook_handle)
@@ -1450,6 +1451,8 @@ def _show(self, notebook_handle=False):
 BokehFigure.show = _show
 Row.show = _show
 Column.show = _show
+GridBox.show = _show
+GridPlot.show = _show
 
 
 #elif __name__ == 'bokehlab':

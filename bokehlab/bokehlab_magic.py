@@ -28,7 +28,7 @@ def bokehlab(line):
     if 'bokehlab' not in ip.extension_manager.loaded:
         ip.run_line_magic('load_ext', 'bokehlab')
     else:
-        display(HTML('<div class="bk-root">BokehJS already loaded, reloading...</div>'))
+        display(HTML('<div>BokehJS already loaded, reloading...</div>'))
         ip.run_line_magic('reload_ext', 'bokehlab')
 
 @register_line_cell_magic

@@ -3,4 +3,6 @@
 build/
 dist/
 bokeh_plot.egg-info/
+bokehlab.egg-info/
 \!.bat
+.python-version
