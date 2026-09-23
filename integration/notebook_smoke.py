@@ -104,6 +104,20 @@ def check_interactions(page):
     page.wait_for_function("Bokeh.documents.some(d => d.get_model_by_name('widget_plot')?.title.text === 'Tap received')", timeout=15000)
 
 
+def execute_lab_cell(page, index):
+    """Execute one Lab cell and wait until its kernel execution completes."""
+    cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
+    cell.locator(".jp-InputArea-editor").click()
+    page.keyboard.press("Shift+Enter")
+    page.wait_for_function("""index => {
+        const cell = document.querySelectorAll('.jp-Notebook .jp-CodeCell')[index];
+        if (!cell || cell.classList.contains('jp-mod-running')) return false;
+        const prompt = cell.querySelector('.jp-InputPrompt');
+        const text = prompt?.textContent?.trim() ?? '';
+        return text !== '' && !text.startsWith('[ ]');
+    }""", arg=index, timeout=60000)
+
+
 def run(frontend, resources):
     with tempfile.TemporaryDirectory(prefix="bokehlab-browser-") as directory:
         root = Path(directory)
@@ -174,16 +188,14 @@ def run(frontend, resources):
                     page.locator(".jp-Notebook .jp-CodeCell").first.wait_for(timeout=60000)
                     # Ignore frontend startup errors before any BokehLab code runs.
                     errors.clear()
-                    page.locator(".jp-CodeCell .jp-InputArea-editor").first.click()
-                    page.keyboard.press("Shift+Enter")
+                    execute_lab_cell(page, 0)
                 # Bokeh's tables model is loaded on demand. Don't wait for its
                 # optional bundle here; the show_df cell below triggers it.
                 if frontend == "classic":
                     page.evaluate("Jupyter.notebook.execute_cells([1, 2, 3, 4])")
                 else:
                     for index in range(1, 5):
-                        page.locator(".jp-CodeCell .jp-InputArea-editor").nth(index).click()
-                        page.keyboard.press("Shift+Enter")
+                        execute_lab_cell(page, index)
                 print(f"Executing {frontend}/{resources}", flush=True)
                 try:
                     page.locator(".jp-OutputArea-output, .output_area").filter(
