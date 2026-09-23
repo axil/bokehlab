@@ -105,6 +105,25 @@ def check_interactions(page):
     page.wait_for_function("Bokeh.documents.some(d => d.get_model_by_name('widget_plot')?.title.text === 'Tap received')", timeout=15000)
 
 
+def wait_for_kernel_ready(opener, base, timeout=60):
+    """Wait for a connected, idle kernel before sending frontend commands."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with opener.open(base + "/api/kernels?token=bokehlab-smoke", timeout=1) as response:
+                kernels = json.load(response)
+            if any(
+                kernel.get("execution_state") == "idle"
+                and kernel.get("connections", 0) > 0
+                for kernel in kernels
+            ):
+                return
+        except Exception:
+            pass
+        time.sleep(0.25)
+    raise RuntimeError("Notebook kernel did not become ready")
+
+
 def execute_lab_cell(page, index, ready_text):
     """Execute a dependency cell and wait for its explicit completion marker."""
     cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
@@ -184,6 +203,10 @@ def run(frontend, resources):
                         state="attached", timeout=180000)
                 else:
                     page.locator(".jp-Notebook .jp-CodeCell").first.wait_for(timeout=60000)
+                    # The notebook UI can render before the kernel is connected.
+                    # Wait before sending the first Shift+Enter so execution is
+                    # not lost during JupyterLab startup.
+                    wait_for_kernel_ready(opener, base)
                     # Ignore frontend startup errors before any BokehLab code runs.
                     errors.clear()
                     execute_lab_cell(page, 0, "BOKEHLAB_SETUP_READY")
