@@ -1,3 +1,5 @@
+0.3.0  Bokeh 3.10 compatibility release; reliable Lab and Classic Notebook browser smoke tests, kernel readiness synchronization, and improved cell execution sequencing.
+
 Unreleased: Bokeh 3.10 / Python 3.12+ compatibility; pyproject packaging, current widgets,
   scatter markers, sizing, serialization, callback subscriptions and notebook tests.
   Local resources now use python -m bokehlab.install_resources (copy instead of symlink).
@@ -22,4 +24,3 @@ Unreleased: Bokeh 3.10 / Python 3.12+ compatibility; pyproject packaging, curren
 0.2.8  plotting list of Series, config bugfix, fix_copy_paste improved
 0.2.9  frozen jupyter-bokeh to v3.0.4 in dependencies, global settings bugfix
 0.2.10 idx for hover, log scale and density=False for hisograms
-

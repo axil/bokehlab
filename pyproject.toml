@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bokehlab"
-version = "0.2.10"
+version = "0.3.0"
 description = "Interactive plotting with familiar syntax in Jupyter notebooks."
 readme = "README.md"
 requires-python = ">=3.12"
