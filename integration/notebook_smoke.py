@@ -110,7 +110,8 @@ def execute_lab_cell(page, index, ready_text):
     cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
     cell.locator(".jp-InputArea-editor").click()
     page.keyboard.press("Shift+Enter")
-    page.locator(".jp-OutputArea-output").filter(has_text=ready_text).first.wait_for(timeout=180000)
+    page.locator(".jp-OutputArea-output").filter(has_text=ready_text).first.wait_for(
+        state="attached", timeout=180000)
 
 
 def run(frontend, resources):
@@ -179,7 +180,8 @@ def run(frontend, resources):
                 if frontend == "classic":
                     page.wait_for_function("window.Jupyter && Jupyter.notebook && Jupyter.notebook.kernel && Jupyter.notebook.kernel.is_connected()")
                     page.evaluate("Jupyter.notebook.execute_cells([0])")
-                    page.locator(".output_area").filter(has_text="BOKEHLAB_SETUP_READY").first.wait_for(timeout=180000)
+                    page.locator(".output_area").filter(has_text="BOKEHLAB_SETUP_READY").first.wait_for(
+                        state="attached", timeout=180000)
                 else:
                     page.locator(".jp-Notebook .jp-CodeCell").first.wait_for(timeout=60000)
                     # Ignore frontend startup errors before any BokehLab code runs.
@@ -192,7 +194,8 @@ def run(frontend, resources):
                     # magic. Wait for it separately, then run the independent
                     # smoke cells in the normal batched manner.
                     page.evaluate("Jupyter.notebook.execute_cells([1])")
-                    page.locator(".output_area").filter(has_text="BOKEHLAB_PLOT_READY").first.wait_for(timeout=180000)
+                    page.locator(".output_area").filter(has_text="BOKEHLAB_PLOT_READY").first.wait_for(
+                        state="attached", timeout=180000)
                     page.evaluate("Jupyter.notebook.execute_cells([2, 3, 4])")
                 else:
                     # Only the first plotting cell depends on namespace names
@@ -206,7 +209,8 @@ def run(frontend, resources):
                 print(f"Executing {frontend}/{resources}", flush=True)
                 try:
                     page.locator(".jp-OutputArea-output, .output_area").filter(
-                        has_text="BOKEHLAB_SMOKE_READY").first.wait_for(timeout=30000)
+                        has_text="BOKEHLAB_SMOKE_READY").first.wait_for(
+                            state="attached", timeout=30000)
                 except Exception:
                     print(page.locator("body").inner_text()[-6000:], file=sys.stderr)
                     raise
