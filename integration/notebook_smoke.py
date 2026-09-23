@@ -179,6 +179,7 @@ def run(frontend, resources):
                 if frontend == "classic":
                     page.wait_for_function("window.Jupyter && Jupyter.notebook && Jupyter.notebook.kernel && Jupyter.notebook.kernel.is_connected()")
                     page.evaluate("Jupyter.notebook.execute_cells([0])")
+                    page.locator(".output_area").filter(has_text="BOKEHLAB_SETUP_READY").first.wait_for(timeout=180000)
                 else:
                     page.locator(".jp-Notebook .jp-CodeCell").first.wait_for(timeout=60000)
                     # Ignore frontend startup errors before any BokehLab code runs.
@@ -187,7 +188,12 @@ def run(frontend, resources):
                 # Bokeh's tables model is loaded on demand. Don't wait for its
                 # optional bundle here; the show_df cell below triggers it.
                 if frontend == "classic":
-                    page.evaluate("Jupyter.notebook.execute_cells([1, 2, 3, 4])")
+                    # The first plotting cell depends on names injected by the
+                    # magic. Wait for it separately, then run the independent
+                    # smoke cells in the normal batched manner.
+                    page.evaluate("Jupyter.notebook.execute_cells([1])")
+                    page.locator(".output_area").filter(has_text="BOKEHLAB_PLOT_READY").first.wait_for(timeout=180000)
+                    page.evaluate("Jupyter.notebook.execute_cells([2, 3, 4])")
                 else:
                     # Only the first plotting cell depends on namespace names
                     # injected by the setup magic. Once those two cells have
