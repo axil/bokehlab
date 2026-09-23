@@ -60,8 +60,10 @@ def update(_):
 button.on_click(update)
 box = VBox([button, w])
 display(box)
+print('BOKEHLAB_WIDGET_READY')
 '''), nbformat.v4.new_code_cell('''
 imshow(np.arange(12).reshape(3, 4), show_colorbar=True)
+print('BOKEHLAB_IMAGE_READY')
 '''), nbformat.v4.new_code_cell('''
 show_df(__import__('pandas').DataFrame({'a': [1, 2], 'b': [3, 4]}))
 print('BOKEHLAB_SMOKE_READY')
@@ -221,22 +223,21 @@ def run(frontend, resources):
                         state="attached", timeout=180000)
                     page.evaluate("Jupyter.notebook.execute_cells([2, 3, 4])")
                 else:
-                    # Only the first plotting cell depends on namespace names
-                    # injected by the setup magic. Once those two cells have
-                    # completed, run the remaining cells normally.
+                    # Execute each cell with a kernel-visible completion marker
+                    # so JupyterLab cannot receive overlapping run commands.
                     execute_lab_cell(page, 1, "BOKEHLAB_PLOT_READY")
-                    for index in range(2, 5):
-                        cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
-                        cell.locator(".jp-InputArea-editor").click()
-                        page.keyboard.press("Shift+Enter")
+                    execute_lab_cell(page, 2, "BOKEHLAB_WIDGET_READY")
+                    execute_lab_cell(page, 3, "BOKEHLAB_IMAGE_READY")
+                    execute_lab_cell(page, 4, "BOKEHLAB_SMOKE_READY")
                 print(f"Executing {frontend}/{resources}", flush=True)
-                try:
-                    page.locator(".jp-OutputArea-output, .output_area").filter(
-                        has_text="BOKEHLAB_SMOKE_READY").first.wait_for(
-                            state="attached", timeout=30000)
-                except Exception:
-                    print(page.locator("body").inner_text()[-6000:], file=sys.stderr)
-                    raise
+                if frontend == "classic":
+                    try:
+                        page.locator(".output_area").filter(
+                            has_text="BOKEHLAB_SMOKE_READY").first.wait_for(
+                                state="attached", timeout=30000)
+                    except Exception:
+                        print(page.locator("body").inner_text()[-6000:], file=sys.stderr)
+                        raise
                 page.wait_for_function("window.Bokeh && Bokeh.documents.some(d => d.get_model_by_name('smoke_plot'))", timeout=30000)
                 page.wait_for_function("Bokeh.documents.some(d => d.get_model_by_name('widget_plot'))", timeout=15000)
                 assert not page.locator(".jp-OutputArea-error, .output_error").count()
