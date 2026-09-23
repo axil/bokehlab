@@ -34,7 +34,6 @@ from bokeh.events import Tap
 from ipywidgets import Button, VBox
 from IPython.display import display
 bl.CONFIG['resources']['mode'] = {resources!r}
-%load_ext bokehlab
 import bokehlab.bokehlab_magic
 %bokehlab {resources}
 %blc width=450 height=280
@@ -115,7 +114,7 @@ def execute_lab_cell(page, index):
         const prompt = cell.querySelector('.jp-InputPrompt');
         const text = prompt?.textContent?.trim() ?? '';
         return text !== '' && !text.startsWith('[ ]');
-    }""", arg=index, timeout=60000)
+    }""", arg=index, timeout=180000)
 
 
 def run(frontend, resources):
@@ -194,8 +193,14 @@ def run(frontend, resources):
                 if frontend == "classic":
                     page.evaluate("Jupyter.notebook.execute_cells([1, 2, 3, 4])")
                 else:
-                    for index in range(1, 5):
-                        execute_lab_cell(page, index)
+                    # Only the first plotting cell depends on namespace names
+                    # injected by the setup magic. Once those two cells have
+                    # completed, run the remaining cells normally.
+                    execute_lab_cell(page, 1)
+                    for index in range(2, 5):
+                        cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
+                        cell.locator(".jp-InputArea-editor").click()
+                        page.keyboard.press("Shift+Enter")
                 print(f"Executing {frontend}/{resources}", flush=True)
                 try:
                     page.locator(".jp-OutputArea-output, .output_area").filter(
