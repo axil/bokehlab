@@ -37,6 +37,7 @@ bl.CONFIG['resources']['mode'] = {resources!r}
 import bokehlab.bokehlab_magic
 %bokehlab {resources}
 %blc width=450 height=280
+print('BOKEHLAB_SETUP_READY')
 '''), nbformat.v4.new_code_cell('''
 p = plot([0, 1, 2], [1, 4, 2], '.-', hover=True, label='series', get_p=True)
 p.name = 'smoke_plot'
@@ -44,6 +45,7 @@ p.title.text = 'BokehLab smoke'
 q = plot([0, 1, 2], [2, 3, 1], 'x-', get_p=True)
 q.name = 'linked_plot'
 display(hstack(p, q, link_x=True))
+print('BOKEHLAB_PLOT_READY')
 '''), nbformat.v4.new_code_cell('''
 w, source = plot([0, 1, 2], [1, 4, 2], 'o-', get_ws=True)
 w._model.name = 'widget_plot'
@@ -103,18 +105,12 @@ def check_interactions(page):
     page.wait_for_function("Bokeh.documents.some(d => d.get_model_by_name('widget_plot')?.title.text === 'Tap received')", timeout=15000)
 
 
-def execute_lab_cell(page, index):
-    """Execute one Lab cell and wait until its kernel execution completes."""
+def execute_lab_cell(page, index, ready_text):
+    """Execute a dependency cell and wait for its explicit completion marker."""
     cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
     cell.locator(".jp-InputArea-editor").click()
     page.keyboard.press("Shift+Enter")
-    page.wait_for_function("""index => {
-        const cell = document.querySelectorAll('.jp-Notebook .jp-CodeCell')[index];
-        if (!cell || cell.classList.contains('jp-mod-running')) return false;
-        const prompt = cell.querySelector('.jp-InputPrompt');
-        const text = prompt?.textContent?.trim() ?? '';
-        return text !== '' && !text.startsWith('[ ]');
-    }""", arg=index, timeout=180000)
+    page.locator(".jp-OutputArea-output").filter(has_text=ready_text).first.wait_for(timeout=180000)
 
 
 def run(frontend, resources):
@@ -187,7 +183,7 @@ def run(frontend, resources):
                     page.locator(".jp-Notebook .jp-CodeCell").first.wait_for(timeout=60000)
                     # Ignore frontend startup errors before any BokehLab code runs.
                     errors.clear()
-                    execute_lab_cell(page, 0)
+                    execute_lab_cell(page, 0, "BOKEHLAB_SETUP_READY")
                 # Bokeh's tables model is loaded on demand. Don't wait for its
                 # optional bundle here; the show_df cell below triggers it.
                 if frontend == "classic":
@@ -196,7 +192,7 @@ def run(frontend, resources):
                     # Only the first plotting cell depends on namespace names
                     # injected by the setup magic. Once those two cells have
                     # completed, run the remaining cells normally.
-                    execute_lab_cell(page, 1)
+                    execute_lab_cell(page, 1, "BOKEHLAB_PLOT_READY")
                     for index in range(2, 5):
                         cell = page.locator(".jp-Notebook .jp-CodeCell").nth(index)
                         cell.locator(".jp-InputArea-editor").click()
