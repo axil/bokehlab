@@ -1,3 +1,4 @@
+0.3.1  imshow view-range fix: image glyphs no longer use a reversed y_range (Bokeh 3.10 rendered only a thin strip); orientation is now set via the glyph origin; fixed swapped x/y padding and squeeze-before-range calculation; regression tests.
 0.3.0  Bokeh 3.10 compatibility release; reliable Lab and Classic Notebook browser smoke tests, kernel readiness synchronization, and improved cell execution sequencing.
 
 Unreleased: Bokeh 3.10 / Python 3.12+ compatibility; pyproject packaging, current widgets,
@@ -24,3 +25,4 @@ Unreleased: Bokeh 3.10 / Python 3.12+ compatibility; pyproject packaging, curren
 0.2.8  plotting list of Series, config bugfix, fix_copy_paste improved
 0.2.9  frozen jupyter-bokeh to v3.0.4 in dependencies, global settings bugfix
 0.2.10 idx for hover, log scale and density=False for hisograms
+0.3.0  adapted to bokeh>=3

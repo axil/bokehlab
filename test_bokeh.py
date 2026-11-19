@@ -137,6 +137,22 @@ def test_histogram_and_stem():
 def test_images(shape, flipud):
     im = np.arange(np.prod(shape), dtype=np.uint8).reshape(shape)
     p = bl.imshow(im, flipud=flipud, show_colorbar=len(shape) == 2, get_p=True)
+    # Bokeh 3 renders image glyphs with reversed Range1d incorrectly (only a
+    # thin strip of the image is visible), so the range must be increasing.
+    height = im.shape[0]
+    assert p.y_range.start < p.y_range.end
+    assert p.y_range.start < 0 and p.y_range.end > height
+    glyph = p.renderers[0].glyph
+    assert glyph.origin == ('bottom_left' if flipud else 'top_left')
+    source = p.renderers[0].data_source
+    assert source.data['y'] == [0] and source.data['dh'] == [height]
+    # the array must be passed unflipped; origin handles the orientation
+    stored = np.asarray(source.data['image'][0])
+    if im.ndim == 2:
+        assert np.array_equal(stored, im)
+    else:
+        rgba = im if im.shape[-1] == 4 else np.dstack([im, np.full_like(im[:, :, 0], 255)])
+        assert np.array_equal(stored, rgba.view(dtype=np.uint32).reshape(im.shape[:2]))
     assert_serializable(p)
 
 

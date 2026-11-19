@@ -33,7 +33,7 @@ from .install_magic import install_magic
 import matplotlib       # for imshow palette
 import matplotlib.cm as cm
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 SIZING_METHOD = 'policies'        # or 'sizing_mode'
 
@@ -1105,7 +1105,7 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
 
     if cmap is not None:
         palette = mpl_cmap(cmap)
-    im = ims[0]
+    im = ims[0].squeeze()
     _padding = CONFIG.get('imshow', {}).get('padding', None)
     if _padding is not None:
         padding = _padding
@@ -1120,17 +1120,12 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
             kw['title'] = title
         if title_location is not None:
             kw['title_location'] = title_location
-#        if not flipud:                 this does not work due to an issue in bokeh
-#            p.y_range.flipped=True     workaround below 
-        y_pad = im.shape[1]*padding/2 if padding is not None else 0
+        y_pad = im.shape[0]*padding/2 if padding is not None else 0
         if y_range is not None:
             kw['y_range'] = y_range
         else:
-            if not flipud:
-                kw['y_range'] = [im.shape[0]+y_pad, -y_pad]
-            else:
-                kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
-        x_pad = im.shape[0]*padding/2 if padding is not None else 0  # just for symmetry with y
+            kw['y_range'] = [-y_pad, im.shape[0]+y_pad]
+        x_pad = im.shape[1]*padding/2 if padding is not None else 0
         if x_range is not None:
             kw['x_range'] = x_range
         else:
@@ -1169,7 +1164,6 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
     if show_toolbar is False:
         p.toolbar.logo = None
         p.toolbar_location = None
-    im = im.squeeze()
     _min, _max = 0, 255
     if np.issubdtype(im.dtype, np.floating):
         if autolevels:
@@ -1211,18 +1205,13 @@ def imshow(*ims, p=None, palette='Viridis256', cmap=None, autolevels=True, show_
             im = im.view(dtype=np.uint32).reshape(im.shape[:2])
 #            palette = None
             color_mapper = None
-        if not flipud:
-            im = np.flipud(im)
-        kw = dict(image=[im], x=[0], dw=[im.shape[1]])
-        if not flipud:
-            kw.update(dict(y=[im.shape[0]], dh=[im.shape[0]]))
-        else:
-            kw.update(dict(y=[0], dh=[im.shape[0]]))
+        kw = dict(image=[im], x=[0], y=[0], dw=[im.shape[1]], dh=[im.shape[0]])
+        origin = 'top_left' if not flipud else 'bottom_left'
         source = ColumnDataSource(data=kw)
         if color_mapper is not None:
-            h = p.image(source=source, color_mapper=color_mapper)
+            h = p.image(source=source, color_mapper=color_mapper, origin=origin)
         else:
-            h = p.image_rgba(source=source)
+            h = p.image_rgba(source=source, origin=origin)
     else:
         raise ValueError('Unsupported image shape: ' + str(im.shape))
 
